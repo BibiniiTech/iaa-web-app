@@ -45,7 +45,7 @@ data class SubmissionDeadline(
 @Composable
 fun SubmissionDeadlinesReminder() {
     val today = LocalDate.now()
-    
+
     // Filter out past deadlines and take only the next 5
     val currentDeadlines = SubmissionDeadline.allDeadlines.filter { !it.date.isBefore(today) }.take(5)
 

@@ -1,3 +1,45 @@
 <resources>
     <string name="app_name">IAA App</string>
+
+    <!-- Home Screen -->
+    <string name="welcome_title">Welcome!</string>
+    <string name="welcome_description">This app aims to ease the submission of the various reports expected from Internal Audit Functions to the IAA and to make resources readily available and accessible to Internal Auditors and Stakeholders.</string>
+    <string name="quick_access_title">Quick Access</string>
+    <string name="submit_quarterly_report">Submit Quarterly Report</string>
+    <string name="submit_ccc_review_report">Submit CCC Review Report</string>
+    <string name="legislation">Legislation</string>
+    <string name="reporting_templates">Reporting Templates</string>
+    <string name="upcoming_seminars">Upcoming Seminars</string>
+    <string name="pending_submissions">Pending Submissions</string>
+    <string name="notices_title">Notices</string>
+    <string name="notices_office_relocation">The IAA has relocated its office premises to Tumu Avenue, Kanda Accra - Ghana with Digital Address: GV-002-6511</string>
+
+    <!-- Resources Screen -->
+    <string name="resources_portal_title">Resources Portal</string>
+    <string name="resources_portal_description">Access laws, guidelines, and templates to support your internal audit functions.</string>
+    <string name="legislations_category">Legislations</string>
+    <string name="legislations_subtitle">Acts, Regulations, L.I.s, etc.</string>
+    <string name="guidelines_category">Guidelines &amp; Manuals</string>
+    <string name="guidelines_subtitle">Standard procedures, Directives and operational manuals.</string>
+    <string name="templates_category">Reporting Templates</string>
+    <string name="templates_subtitle">Standard formats for various reports.</string>
+    <string name="no_legislations">No legislations available</string>
+    <string name="no_guidelines">No guidelines available</string>
+    <string name="no_templates">No templates available</string>
+
+    <!-- Contact Screen -->
+    <string name="contact_us_title">Contact Us</string>
+    <string name="head_office_title">Head Office</string>
+    <string name="head_office_address">Tumu Avenue, Kanda Accra - Ghana\nDigital Address: GV-002-6511</string>
+    <string name="phone_title">Phone</string>
+    <string name="phone_number">+233 (0) 362 196 941</string>
+    <string name="email_title">Email</string>
+    <string name="email_addresses">info@iaa.gov.gh\niaamails@iaa.gov.gh</string>
+    <string name="specific_desks_title">Specific Desks</string>
+    <string name="specific_desks_content">CCCC: +233 (0) 362 196 941 \nNACAP: +233 (0) 362 196 941\nTrainings: +233 (0) 362 196 941</string>
+    <string name="follow_us_title">Follow Us</string>
+    <string name="google_maps_location">Google Maps Location</string>
+    <string name="tap_to_open_full_app">Tap to open in full app</string>
+    <string name="open_in_maps">Open in Maps</string>
+    <string name="map_preview_not_supported">Map Preview\n(WebView not supported in Preview)</string>
 </resources>

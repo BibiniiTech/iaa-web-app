@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
@@ -23,11 +24,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.iaaapp.ui.navigation.NavGraph
 import com.example.iaaapp.ui.navigation.Screen
+import com.example.iaaapp.ui.navigation.navigateToScreenSafe
 import com.example.iaaapp.ui.theme.IAAAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -111,55 +112,57 @@ fun FloatingMenu(navController: NavController) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .width(220.dp)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
+            modifier = Modifier.width(200.dp),
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+            tonalElevation = 8.dp,
+            shadowElevation = 16.dp
         ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
             Screen.items.forEach { screen ->
-                val isSelected = currentRoute == screen.route
+                // Use base route for comparison to handle parameters (like ?expand=...)
+                val baseRoute = screen.route.substringBefore("?")
+                val currentBaseRoute = currentRoute?.substringBefore("?")
+                val isSelected = currentBaseRoute == baseRoute
+
                 DropdownMenuItem(
                     text = { 
                         Text(
                             screen.label,
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         ) 
                     },
                     onClick = {
                         expanded = false
-                        if (currentRoute != screen.route) {
-                            navigateToScreenSafe(navController, screen)
+                        // Navigate if we are not on the selected screen, or if it's the Home screen
+                        // This ensures Home navigation always works from any sub-page
+                        if (!isSelected || screen == Screen.Home) {
+                            navController.navigateToScreenSafe(screen)
                         }
                     },
                     leadingIcon = { 
                         Icon(
                             screen.icon, 
                             contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         ) 
                     },
-                    modifier = Modifier.background(
-                        if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
-                    )
+                    colors = MenuDefaults.itemColors(
+                        textColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        leadingIconColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .background(
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else Color.Transparent,
+                            shape = RoundedCornerShape(16.dp)
+                        )
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
-    }
-}
-
-private fun navigateToScreenSafe(navController: NavController, screen: Screen) {
-    try {
-        navController.navigate(screen.route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
-            }
-            launchSingleTop = true
-            restoreState = true
-        }
-    } catch (_: Exception) {
-        navController.navigate(screen.route)
     }
 }
 

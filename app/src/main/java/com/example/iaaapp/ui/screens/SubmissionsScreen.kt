@@ -24,7 +24,8 @@ fun SubmissionsScreen(
     onNavigateToQuarterly: () -> Unit = {},
     onNavigateToAnnual: () -> Unit = {},
     onNavigateToCCC: () -> Unit = {},
-    onNavigateToStatusOfImplementation: () -> Unit = {}
+    onNavigateToStatusOfImplementation: () -> Unit = {},
+    onNavigateToOther: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -107,7 +108,8 @@ fun SubmissionsScreen(
             SubmissionActionButton(
                 text = "Other Reports",
                 icon = Icons.Default.Add,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onNavigateToOther
             )
         }
         

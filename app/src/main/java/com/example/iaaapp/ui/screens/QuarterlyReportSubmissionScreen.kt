@@ -1,5 +1,9 @@
 package com.example.iaaapp.ui.screens
 
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,6 +25,7 @@ import com.example.iaaapp.ui.theme.IAAAppTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuarterlyReportSubmissionScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     var institutionType by remember { mutableStateOf("") }
     var institutionText by remember { mutableStateOf("") }
     var selectedRegion by remember { mutableStateOf("") }
@@ -27,7 +33,25 @@ fun QuarterlyReportSubmissionScreen(onBack: () -> Unit) {
     var quarter by remember { mutableStateOf("") }
     var senderName by remember { mutableStateOf("") }
     var senderEmail by remember { mutableStateOf("") }
-    val uploadedFiles = remember { mutableStateListOf<String>() }
+    
+    // Store pairs of Uri and FileName
+    val uploadedFiles = remember { mutableStateListOf<Pair<Uri, String>>() }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val fileName = context.contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                cursor.moveToFirst()
+                cursor.getString(nameIndex)
+            } ?: it.path?.substringAfterLast('/') ?: "Unknown File"
+            
+            if (uploadedFiles.size < 5) {
+                uploadedFiles.add(it to fileName)
+            }
+        }
+    }
 
     val regions = listOf(
         "Ahafo", "Ashanti", "Bono", "Bono East", "Central", "Eastern", 
@@ -261,9 +285,7 @@ fun QuarterlyReportSubmissionScreen(onBack: () -> Unit) {
                     
                     if (uploadedFiles.size < 5) {
                         Button(
-                            onClick = { 
-                                uploadedFiles.add("Report_${uploadedFiles.size + 1}.pdf") 
-                            },
+                            onClick = { filePickerLauncher.launch("*/*") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.AttachFile, contentDescription = null)
@@ -272,11 +294,11 @@ fun QuarterlyReportSubmissionScreen(onBack: () -> Unit) {
                         }
                     }
 
-                    uploadedFiles.forEachIndexed { index, fileName ->
+                    uploadedFiles.forEachIndexed { index, pair ->
                         ListItem(
                             headlineContent = { 
                                 Text(
-                                    fileName, 
+                                    pair.second,
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.Center
                                 ) 

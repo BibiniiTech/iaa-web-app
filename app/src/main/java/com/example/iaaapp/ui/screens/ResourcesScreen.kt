@@ -19,17 +19,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.example.iaaapp.R
 import com.example.iaaapp.ui.theme.IAAAppTheme
 import java.io.File
 import java.io.FileOutputStream
 
 @Composable
-fun ResourcesScreen() {
+fun ResourcesScreen(initialExpandedCategory: String? = null) {
     val context = LocalContext.current
     
     Column(
@@ -41,7 +43,7 @@ fun ResourcesScreen() {
         Spacer(modifier = Modifier.height(48.dp))
         
         Text(
-            text = "Resources Portal",
+            text = stringResource(id = R.string.resources_portal_title),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold,
@@ -50,7 +52,7 @@ fun ResourcesScreen() {
         )
         
         Text(
-            text = "Access laws, guidelines, and templates to support your internal audit functions.",
+            text = stringResource(id = R.string.resources_portal_description),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
@@ -60,15 +62,16 @@ fun ResourcesScreen() {
         Spacer(modifier = Modifier.height(32.dp))
         
         ResourceCategoryItem(
-            title = "Legislations",
-            subtitle = "Acts, Regulations, L.I.s, etc.",
-            icon = Icons.Default.Gavel
+            title = stringResource(id = R.string.legislations_category),
+            subtitle = stringResource(id = R.string.legislations_subtitle),
+            icon = Icons.Default.Gavel,
+            isInitiallyExpanded = initialExpandedCategory == "legislations"
         ) {
             val folder = "legislations"
             val files = getAssetsInFolder(context, folder)
             if (files.isEmpty()) {
                 Text(
-                    text = "No legislations available",
+                    text = stringResource(id = R.string.no_legislations),
                     modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -83,15 +86,16 @@ fun ResourcesScreen() {
         }
         
         ResourceCategoryItem(
-            title = "Guidelines & Manuals",
-            subtitle = "Standard procedures, Directives and operational manuals.",
-            icon = Icons.AutoMirrored.Filled.Rule
+            title = stringResource(id = R.string.guidelines_category),
+            subtitle = stringResource(id = R.string.guidelines_subtitle),
+            icon = Icons.AutoMirrored.Filled.Rule,
+            isInitiallyExpanded = initialExpandedCategory == "guidelines"
         ) {
             val folder = "guidelines"
             val files = getAssetsInFolder(context, folder)
             if (files.isEmpty()) {
                 Text(
-                    text = "No guidelines available",
+                    text = stringResource(id = R.string.no_guidelines),
                     modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -106,15 +110,16 @@ fun ResourcesScreen() {
         }
         
         ResourceCategoryItem(
-            title = "Reporting Templates",
-            subtitle = "Standard formats for various reports.",
-            icon = Icons.Default.Description
+            title = stringResource(id = R.string.templates_category),
+            subtitle = stringResource(id = R.string.templates_subtitle),
+            icon = Icons.Default.Description,
+            isInitiallyExpanded = initialExpandedCategory == "templates"
         ) {
             val folder = "templates"
             val files = getAssetsInFolder(context, folder)
             if (files.isEmpty()) {
                 Text(
-                    text = "No templates available",
+                    text = stringResource(id = R.string.no_templates),
                     modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -175,10 +180,16 @@ fun ResourceCategoryItem(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    isInitiallyExpanded: Boolean = false,
     content: @Composable (ColumnScope.() -> Unit)? = null
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(isInitiallyExpanded) }
     
+    // Update expanded state if the prop changes (important for deep linking)
+    LaunchedEffect(isInitiallyExpanded) {
+        if (isInitiallyExpanded) expanded = true
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()

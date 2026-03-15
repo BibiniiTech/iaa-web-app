@@ -68,7 +68,10 @@ fun TrainingsScreen() {
             icon = Icons.Default.PlayCircleOutline,
             isExpandable = true
         ) {
-            Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+            Column(
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 VideoListItem("IAA Audit Methodology 101", "https://www.youtube.com/results?search_query=internal+audit+methodology") { uriHandler.openUri(it) }
                 VideoListItem("Risk Assessment Techniques", "https://www.youtube.com/results?search_query=audit+risk+assessment") { uriHandler.openUri(it) }
@@ -107,17 +110,6 @@ fun TrainingsScreen() {
                     "GH₵ 1,200.00",
                     "https://forms.gle/example2"
                 ) { uriHandler.openUri(it) }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "Don't see a topic you need?",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                TextButton(onClick = { uriHandler.openUri("mailto:training@iaa.gov.gh") }) {
-                    Text("Suggest a Training Topic")
-                }
             }
         }
         
@@ -128,7 +120,10 @@ fun TrainingsScreen() {
             isExpandable = true
         ) {
             val files = getAssetsInFolder(context)
-            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+            Column(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 if (files.isEmpty()) {
                     Text(
@@ -213,12 +208,13 @@ fun TrainingCategoryItem(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
-        Column {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(
                 modifier = Modifier
                     .padding(20.dp)
                     .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Surface(
                     modifier = Modifier.size(48.dp),
@@ -237,18 +233,25 @@ fun TrainingCategoryItem(
                 
                 Spacer(modifier = Modifier.width(16.dp))
                 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
+                
+                Spacer(modifier = Modifier.width(16.dp))
                 
                 Icon(
                     imageVector = if (isExpandable) {
@@ -276,7 +279,8 @@ fun VideoListItem(title: String, url: String, onVideoClick: (String) -> Unit) {
             .fillMaxWidth()
             .clickable { onVideoClick(url) }
             .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = Icons.Default.PlayCircleOutline,
@@ -289,7 +293,8 @@ fun VideoListItem(title: String, url: String, onVideoClick: (String) -> Unit) {
             text = title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -310,7 +315,8 @@ fun TrainingResourceFileItem(title: String, onClick: () -> Unit) {
             modifier = Modifier
                 .padding(12.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Description,
@@ -323,8 +329,9 @@ fun TrainingResourceFileItem(title: String, onClick: () -> Unit) {
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.width(12.dp))
             Icon(
                 imageVector = Icons.Default.FileOpen,
                 contentDescription = null,
@@ -346,57 +353,104 @@ fun SeminarDetailItem(
     onRegisterClick: (String) -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = topic,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        SeminarInfoRow(Icons.Default.CalendarToday, date)
-        SeminarInfoRow(Icons.Default.Schedule, time)
-        SeminarInfoRow(Icons.Default.LocationOn, location)
-        SeminarInfoRow(Icons.Default.Payments, fee)
         
         Spacer(modifier = Modifier.height(8.dp))
         
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.CalendarToday,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = date,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = time,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = location,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Payments,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Fee: $fee",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
         Button(
             onClick = { onRegisterClick(registrationUrl) },
-            modifier = Modifier.height(36.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp)
         ) {
-            Text("Register", fontSize = 12.sp)
+            Text("Register Now")
         }
-    }
-}
-
-@Composable
-fun SeminarInfoRow(icon: ImageVector, text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
