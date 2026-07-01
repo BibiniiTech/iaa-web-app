@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "586023153507",
+    "project_id": "iaa-app-4f412",
+    "storage_bucket": "iaa-app-4f412.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:586023153507:android:3e3cac95d9fa668c146d56",
+        "android_client_info": {
+          "package_name": "com.example.iaaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcFndpka9k8hnH816C04twRpdGJWcW0Uk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
