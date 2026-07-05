@@ -1,0 +1,112 @@
+.calculatorContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.calcTitle {
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.inputArea {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inputGroup label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--neutral-slate);
+}
+
+.inputGroup input, .inputGroup select {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.resultsCard {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.resultsCard h3 {
+  font-size: 1.1rem;
+  text-align: center;
+  color: var(--secondary-gold);
+  margin-bottom: 0.5rem;
+}
+
+.resultRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resultRow span {
+  font-size: 0.95rem;
+  color: var(--neutral-slate);
+}
+
+.deduction {
+  color: var(--error-red);
+}
+
+.netRow {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.netValue {
+  color: var(--primary-navy-light);
+  font-size: 1.25rem;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  margin: 0.5rem 0;
+}
+
+.clearButton {
+  align-self: center;
+  padding: 10px 30px;
+  background-color: var(--neutral-slate);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.clearButton:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .calculatorContainer {
+    padding: 0 0.5rem;
+  }
+}

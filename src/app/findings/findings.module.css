@@ -1,0 +1,395 @@
+.pageContainer {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-bottom: 5rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.searchSection {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.searchWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 14px 45px 14px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 1.1rem;
+  background: var(--background);
+  color: var(--foreground);
+  margin-bottom: 1rem;
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--primary);
+}
+
+.clearButton {
+  position: absolute;
+  right: 15px;
+  top: 18px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.chip {
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--foreground);
+}
+
+.activeChip {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.resultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.resultsCount {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.findingCard {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.findingCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.findingCard.expanded {
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTop {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.findingTitle {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.categoryTag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--primary-container);
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+.copyButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+  color: var(--primary);
+  opacity: 0.6;
+  margin-top: -4px;
+}
+
+.copyButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+}
+
+.cardFooter {
+  padding: 0.5rem 1.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.viewCriteriaText {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.expandIcon {
+  font-size: 0.7rem;
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+.cardBody {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  margin: 0 0 1rem 0;
+}
+
+.collapseHint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+.observation {
+  margin-bottom: 1.5rem;
+}
+
+.observation p {
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+
+.criteriaSection h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.criteriaList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.criteriaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-variant);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.criteriaItem:hover {
+  background: var(--border-color);
+}
+
+.gavelIcon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.criteriaLabel {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.openIcon {
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.applicable {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.highlight {
+  background: rgba(var(--primary-rgb), 0.2);
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 2px;
+  color: inherit;
+}
+
+.onboardingState, .emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--muted);
+}
+
+.iconLarge {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.mismatchPrompt {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--primary-container);
+  border-radius: 12px;
+  color: var(--primary);
+}
+
+.outlineButton {
+  margin-top: 1rem;
+  padding: 8px 20px;
+  background: none;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.outlineButton:hover {
+  background: rgba(var(--primary-rgb), 0.05);
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalContent {
+  background: var(--background);
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modalContent h3 {
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.lawTitle {
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.lawDetail {
+  margin-top: 1rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.modalActions {
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.searchWebButton {
+  flex: 1;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.closeButton {
+  padding: 12px 24px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .searchSection {
+    padding: 1rem;
+  }
+  .cardHeader {
+    padding: 1rem;
+  }
+  .filterChips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-right: -1rem; /* Negative margin to scroll to edge */
+    padding-right: 1rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filterChips::-webkit-scrollbar {
+    display: none;
+  }
+  .chip {
+    flex-shrink: 0;
+  }
+}

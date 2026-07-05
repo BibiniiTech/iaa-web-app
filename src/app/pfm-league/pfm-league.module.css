@@ -1,0 +1,177 @@
+.page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iconContainer {
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.header p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--neutral-slate);
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.categoryCard {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+
+.categoryCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.categoryHeader h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.chevron {
+  font-size: 0.8rem;
+  color: var(--neutral-slate);
+  transition: transform 0.2s ease;
+}
+
+.categoryContent {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.sectionContainer {
+  margin-bottom: 1.5rem;
+}
+
+.sectionContainer:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--foreground);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.institutionBox {
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+/* Compliance Tiers - matching Android app colors (20% opacity) */
+.statusHighlyCompliant {
+  background-color: rgba(76, 175, 80, 0.15);
+  border-left: 4px solid #4CAF50;
+}
+
+.statusCompliant {
+  background-color: rgba(139, 195, 74, 0.15);
+  border-left: 4px solid #8BC34A;
+}
+
+.statusModeratelyCompliant {
+  background-color: rgba(255, 235, 59, 0.15);
+  border-left: 4px solid #FFC107;
+}
+
+.statusLeastCompliant {
+  background-color: rgba(244, 67, 54, 0.15);
+  border-left: 4px solid #F44336;
+}
+
+.statusDefault {
+  background-color: rgba(128, 128, 128, 0.1);
+  border-left: 4px solid grey;
+}
+
+.institutionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.institutionItem {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.emptyText {
+  font-size: 0.85rem;
+  color: var(--neutral-slate);
+  font-style: italic;
+  margin: 0;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.1rem;
+  color: var(--neutral-slate);
+}
+
+/* Dark theme status badge colors */
+@media (prefers-color-scheme: dark) {
+  .statusHighlyCompliant {
+    background-color: rgba(76, 175, 80, 0.2);
+  }
+  .statusCompliant {
+    background-color: rgba(139, 195, 74, 0.2);
+  }
+  .statusModeratelyCompliant {
+    background-color: rgba(255, 235, 59, 0.1);
+  }
+  .statusLeastCompliant {
+    background-color: rgba(244, 67, 54, 0.25);
+  }
+  .iconContainer {
+    color: var(--champagne-gold);
+  }
+}

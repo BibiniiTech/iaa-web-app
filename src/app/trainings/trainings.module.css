@@ -1,0 +1,255 @@
+.page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: var(--neutral-slate);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  padding: 1.5rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  gap: 1.25rem;
+  color: inherit;
+}
+
+.iconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: rgba(27, 54, 93, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.cardMeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.cardSubtitle {
+  font-size: 0.85rem;
+  color: var(--neutral-slate);
+  margin-top: 2px;
+}
+
+.chevron {
+  font-size: 0.8rem;
+  color: var(--neutral-slate);
+  transition: transform 0.2s ease;
+}
+
+.cardBody {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin-bottom: 1rem;
+}
+
+/* Video Section styles */
+.videoItem {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 0.75rem;
+  background-color: var(--card-bg);
+  font-weight: 500;
+  color: var(--foreground);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.videoItem:hover {
+  background-color: var(--background-light);
+  transform: translateY(-1px);
+}
+
+.playDot {
+  color: var(--error-red);
+  margin-right: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.externalArrow {
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+/* Seminar styles */
+.seminarList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.seminarDivider {
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+.seminarCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.seminarTopic {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.4;
+}
+
+.seminarMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--neutral-slate);
+}
+
+.metaIcon {
+  color: var(--primary-navy-light);
+  flex-shrink: 0;
+}
+
+.feeText {
+  font-weight: 700;
+  color: var(--secondary-gold);
+}
+
+.registerBtn {
+  display: inline-block;
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+  border-radius: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.registerBtn:hover {
+  opacity: 0.9;
+}
+
+/* Document section styles */
+.docList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.docItem {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.docItem:hover {
+  background-color: var(--background-light);
+  transform: translateY(-1px);
+}
+
+.docIcon {
+  font-size: 1.25rem;
+  margin-right: 0.75rem;
+}
+
+.docName {
+  font-weight: 500;
+  color: var(--foreground);
+  flex: 1;
+}
+
+.openIcon {
+  color: var(--primary);
+}
+
+.emptyText {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--neutral-slate);
+  font-size: 0.95rem;
+}
+
+/* Dark theme overrides */
+@media (prefers-color-scheme: dark) {
+  .iconBox {
+    background-color: rgba(223, 185, 110, 0.15);
+    color: var(--primary);
+  }
+  .videoItem:hover,
+  .docItem:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  .metaIcon {
+    color: var(--champagne-gold);
+  }
+}

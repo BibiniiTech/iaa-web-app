@@ -1,0 +1,257 @@
+.authContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.topBar {
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background);
+  flex-shrink: 0;
+}
+
+.topBarTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--foreground);
+  text-align: center;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.authCard {
+  background: var(--card-bg);
+  padding: 32px 24px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logoContainer {
+  margin-bottom: 16px;
+}
+
+.logo {
+  object-fit: contain;
+}
+
+.authTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+
+.authSubtitle {
+  text-align: center;
+  color: var(--neutral-slate);
+  margin-bottom: 32px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.authForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.inputGroup {
+  width: 100%;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 16px;
+  color: var(--neutral-slate);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.inputField {
+  width: 100%;
+  padding: 16px 48px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--foreground);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: var(--primary);
+  border-width: 2px;
+}
+
+.inputField::placeholder {
+  color: var(--neutral-slate);
+  opacity: 0.7;
+}
+
+.visibilityToggle {
+  position: absolute;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--neutral-slate);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.forgotPassword {
+  align-self: flex-end;
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-weight: 500;
+}
+
+.submitButton {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 16px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+}
+
+.googleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-top: 16px;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 24px 0;
+  color: var(--neutral-slate);
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+.signUpCard {
+  width: 100%;
+  padding: 16px;
+  background-color: rgba(74, 85, 104, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.signUpPrompt {
+  font-size: 0.75rem;
+  color: var(--neutral-slate);
+}
+
+.signUpButton {
+  width: 100%;
+  padding: 10px;
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  color: var(--primary);
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.signUpButton:hover {
+  background-color: rgba(27, 54, 93, 0.05);
+}
+
+.errorMessage {
+  width: 100%;
+  color: var(--error-red);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.successMessage {
+  width: 100%;
+  color: var(--success-green);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .signUpCard {
+    background-color: rgba(223, 185, 110, 0.05);
+  }
+}

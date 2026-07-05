@@ -1,0 +1,232 @@
+.pageContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: var(--neutral-slate);
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.categoryCard {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  cursor: pointer;
+  gap: 1rem;
+  transition: background-color 0.2s;
+}
+
+.categoryHeader:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: rgba(27, 54, 93, 0.1); /* Primary with opacity */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.categoryInfo {
+  flex: 1;
+}
+
+.categoryInfo h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.categoryInfo p {
+  font-size: 0.85rem;
+  color: var(--neutral-slate);
+  margin: 2px 0 0;
+}
+
+.expandIcon {
+  font-size: 1.25rem;
+  color: var(--neutral-slate);
+  transition: transform 0.3s;
+}
+
+.categoryContent {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.docList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.docItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  color: var(--foreground);
+  transition: background-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.docItem:hover {
+  background-color: var(--background);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.docIcon {
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+
+.docInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.docName {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.docMeta {
+  font-size: 0.75rem;
+  color: var(--neutral-slate);
+}
+
+.newBadge {
+  background-color: var(--success-green);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+.openIcon {
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+.emptyText {
+  padding: 1rem;
+  font-size: 0.9rem;
+  color: var(--neutral-slate);
+  text-align: center;
+}
+
+/* Interactive Checklist Styles */
+.interactiveSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 12px;
+}
+
+.playbookTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.dropdown {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+}
+
+.checklistCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.itemText {
+  font-size: 0.9rem;
+  color: var(--foreground);
+  transition: color 0.2s;
+}
+
+.itemTextChecked {
+  color: var(--neutral-slate);
+  text-decoration: line-through;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 1rem 0;
+}
+
+.sectionSubtitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}

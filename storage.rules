@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    match /submissions/{userId}/{category}/{fileName} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.size < 25 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    match /resources/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /documents/{category}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

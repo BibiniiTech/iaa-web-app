@@ -1,0 +1,148 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding-bottom: 100px;
+}
+
+.header {
+  width: 100%;
+  padding: 48px 20px 32px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.infoCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.infoCard:hover {
+  transform: translateY(-2px);
+}
+
+.icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.infoCard h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--neutral-slate);
+}
+
+.infoCard p {
+  font-size: 1rem;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.mapCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapPlaceholder {
+  height: 350px;
+  background: var(--background);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8px;
+  border-radius: 12px;
+}
+
+.placeholderText {
+  text-align: center;
+  color: var(--neutral-slate);
+  font-size: 0.9rem;
+}
+
+.mapFooter {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mapFooter h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.mapFooter p {
+  font-size: 0.8rem;
+  color: var(--neutral-slate);
+  margin: 4px 0 0;
+}
+
+.mapButton {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: var(--background);
+  font-size: 20px;
+}
+
+.socialSection {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.socialSection h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.socialRow {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.socialIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.socialIcon:hover {
+  transform: scale(1.1);
+}

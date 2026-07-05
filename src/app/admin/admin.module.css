@@ -1,0 +1,318 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.header p,
+.muted {
+  color: var(--neutral-slate);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.tabButton {
+  background: none;
+  border: none;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--neutral-slate);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+
+.activeTab {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.section {
+  display: block;
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.cardHeader {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  padding: 1rem;
+  cursor: pointer;
+}
+
+.cardHeader strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.cardHeader small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--neutral-slate);
+  font-weight: 400;
+}
+
+.cardBody {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1rem 1rem;
+}
+
+.formGroup {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.formGroup span {
+  font-size: 0.9rem;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.twoCol,
+.inlineForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.inlineForm {
+  grid-template-columns: 1.5fr 1fr auto;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.toggleRow:last-child {
+  border-bottom: none;
+}
+
+.toggleRow input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.saveButton,
+.addBtn {
+  justify-self: start;
+  padding: 0.75rem 1.2rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saveButton:disabled,
+.addBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.addBtn {
+  background: var(--success-green);
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: var(--error-red);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-color);
+}
+
+.inlineTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--primary);
+}
+
+.selectedList,
+.list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.selectedList span {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.listRow span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.listRow small {
+  color: var(--neutral-slate);
+}
+
+.submissionList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.submissionItem {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.onTimeRow {
+  background: rgba(46, 125, 50, 0.12);
+}
+
+.lateRow {
+  background: rgba(198, 40, 40, 0.12);
+}
+
+.submissionSummary {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+}
+
+.submissionSummary span:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.submissionSummary small {
+  color: var(--primary);
+}
+
+.submissionDetails {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0 0.85rem 0.85rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.successMessage,
+.errorMessage {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.successMessage {
+  background: rgba(46, 125, 50, 0.12);
+  color: var(--success-green);
+}
+
+.errorMessage {
+  background: rgba(198, 40, 40, 0.12);
+  color: var(--error-red);
+}
+
+@media (max-width: 760px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .twoCol,
+  .inlineForm {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeader,
+  .listRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
