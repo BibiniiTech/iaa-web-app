@@ -35,6 +35,7 @@
 .logoImage {
   object-fit: contain;
   max-width: 100%;
+  width: auto;
   height: auto;
 }
 
@@ -190,8 +191,65 @@
 .mainContent {
   margin-left: var(--sidebar-width);
   min-height: 100vh;
-  padding: 2rem;
+  padding: 0; /* Remove padding here, move to pageBody */
   background-color: var(--background);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.pageBody {
+  flex: 1;
+  padding: 2rem;
+  z-index: 1;
+}
+
+.globalFooter {
+  padding: 2rem;
+  text-align: center;
+  z-index: 1;
+  border-top: 1px solid var(--border-color);
+  background-color: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.globalFooter p {
+  font-size: 0.85rem;
+  color: var(--neutral-slate);
+  font-weight: 500;
+}
+
+.globalFooterBg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px;
+  z-index: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--background);
+}
+
+.authOnlyContent {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.mobileFooter {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 
 @media (max-width: 768px) {
@@ -205,8 +263,14 @@
 
   .mainContent {
     margin-left: 0;
-    padding-top: calc(var(--header-height) + 1rem);
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-top: var(--header-height);
+  }
+
+  .pageBody {
+    padding: 1rem;
+  }
+
+  .globalFooter {
+    padding: 1.5rem 1rem;
   }
 }

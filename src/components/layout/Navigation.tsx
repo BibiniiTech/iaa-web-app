@@ -7,8 +7,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import styles from './Navigation.module.css';
 
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import LoginPage from '@/app/login/page';
+import Disclaimer from './Disclaimer';
 
 type IconName =
   | 'home'
@@ -19,6 +21,8 @@ type IconName =
   | 'school'
   | 'leaderboard'
   | 'contactPage'
+  | 'howToVote'
+  | 'gavel'
   | 'adminPanelSettings'
   | 'logout'
   | 'menu'
@@ -38,7 +42,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Submissions', href: '/submissions', icon: 'send' },
   { label: 'Trainings', href: '/trainings', icon: 'school' },
   { label: 'PFM League', href: '/pfm-league', icon: 'leaderboard' },
+  { label: 'Voting', href: '/voting', icon: 'howToVote' },
   { label: 'Contact', href: '/contact', icon: 'contactPage' },
+  { label: 'Disclaimer', href: '/disclaimer', icon: 'gavel' },
 ];
 
 const ICON_PATHS: Record<IconName, string> = {
@@ -50,6 +56,8 @@ const ICON_PATHS: Record<IconName, string> = {
   school: 'M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 13.5L5 12.67v4L12 20l7-3.33v-4L12 16.5z',
   leaderboard: 'M16 11V3H8v8H2v10h20V11h-6zM4 19v-6h4v6H4zm10 0h-4V5h4v14zm6 0h-4v-6h4v6z',
   contactPage: 'M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 15H7v-1.5c0-1.66 3.33-2.5 5-2.5s5 .84 5 2.5V17h-5zm0-5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm1-3V3.5L18.5 9H13z',
+  howToVote: 'M18 13h-5v7H6v-7H5c-1.1 0-2 .9-2 2v5c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5c0-1.1-.9-2-2-2zm-6-4.27a3.5 3.5 0 0 1-3.5-3.5a3.5 3.5 0 0 1 7 0a3.5 3.5 0 0 1-3.5 3.5M12 2a5.5 5.5 0 0 0-5.5 5.5a5.5 5.5 0 0 0 2.45 4.56L12 18.5l3.05-6.44a5.5 5.5 0 0 0 2.45-4.56A5.5 5.5 0 0 0 12 2',
+  gavel: 'm5.22 8.57 3.53 3.53 4.24-4.24L9.46 4.33a1.5 1.5 0 0 0-2.12 0L5.22 6.45a1.5 1.5 0 0 0 0 2.12zM16.54 11l-4.24 4.24 3.53 3.53a1.5 1.5 0 0 0 2.12 0l2.12-2.12a1.5 1.5 0 0 0 0-2.12L16.54 11zM10.5 15l-1.41-1.41L2.12 20.5a1 1 0 0 0 0 1.41l.71.71a1 1 0 0 0 1.41 0L10.5 15z',
   adminPanelSettings: 'M17 11c.34 0 .67.04 1 .1V5.27L10.5 2 3 5.27v4.91c0 4.54 3.2 8.79 7.5 9.82.55-.13 1.08-.32 1.59-.55A6.99 6.99 0 0 1 17 11zm0 2c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 1.38c.62 0 1.12.5 1.12 1.12s-.5 1.12-1.12 1.12-1.12-.5-1.12-1.12.5-1.12 1.12-1.12zm0 5.24c-.93 0-1.74-.46-2.24-1.17.05-.74 1.5-1.15 2.24-1.15.75 0 2.19.41 2.24 1.15-.5.71-1.31 1.17-2.24 1.17z',
   logout: 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z',
   menu: 'M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z',
@@ -68,24 +76,35 @@ function NavLinks({
   isAdmin,
   pathname,
   closeDrawer,
+  showPfmLeague,
+  showVoting,
+  showDisclaimer,
 }: {
   isAdmin: boolean;
   pathname: string;
   closeDrawer: () => void;
+  showPfmLeague: boolean;
+  showVoting: boolean;
+  showDisclaimer: boolean;
 }) {
   return (
     <div className={styles.navLinks}>
-      {NAV_ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
-          onClick={closeDrawer}
-        >
-          <MaterialIcon name={item.icon} />
-          <span>{item.label}</span>
-        </Link>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        if (item.href === '/pfm-league' && !showPfmLeague) return null;
+        if (item.href === '/voting' && !showVoting) return null;
+        if (item.href === '/disclaimer' && !showDisclaimer) return null;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
+            onClick={closeDrawer}
+          >
+            <MaterialIcon name={item.icon} />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
       {isAdmin && (
         <Link
           href="/admin"
@@ -103,20 +122,74 @@ function NavLinks({
 export default function Navigation({ children }: { children: React.ReactNode }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
+  const [showPfmLeague, setShowPfmLeague] = useState(true);
+  const [showVoting, setShowVoting] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        const [userDoc, disclaimerSnap, pfmSnap, votingSnap] = await Promise.all([
+          getDoc(doc(db, 'users', firebaseUser.uid)),
+          getDoc(doc(db, 'config', 'show_disclaimer')),
+          getDoc(doc(db, 'config', 'show_pfm_league')),
+          getDoc(doc(db, 'config', 'voting_config'))
+        ]);
+
         setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+
+        if (disclaimerSnap.exists() && disclaimerSnap.data().show) {
+          setShowDisclaimer(true);
+          const accepted = localStorage.getItem('disclaimer_accepted');
+          setDisclaimerAccepted(!!accepted);
+        } else {
+          setShowDisclaimer(false);
+          setDisclaimerAccepted(true);
+        }
+
+        if (pfmSnap.exists()) {
+          setShowPfmLeague(pfmSnap.data().show ?? true);
+        }
+
+        if (votingSnap.exists()) {
+          setShowVoting(votingSnap.data().visible ?? true);
+        }
       } else {
         setIsAdmin(false);
+        setShowDisclaimer(false);
+        setDisclaimerAccepted(true);
+        setShowPfmLeague(true);
+        setShowVoting(true);
       }
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (pathname === '/disclaimer' && !showDisclaimer) {
+      router.push('/');
+    }
+    if (pathname === '/pfm-league' && !showPfmLeague) {
+      router.push('/');
+    }
+    if (pathname === '/voting' && !showVoting) {
+      router.push('/');
+    }
+  }, [pathname, showDisclaimer, showPfmLeague, showVoting, loading, router]);
+
+  const handleAcceptDisclaimer = () => {
+    localStorage.setItem('disclaimer_accepted', 'true');
+    setDisclaimerAccepted(true);
+  };
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -126,13 +199,37 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   const closeDrawer = () => setIsDrawerOpen(false);
   const toggleDrawer = () => setIsDrawerOpen((open) => !open);
 
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+
+  if (loading) {
+    return (
+      <div className={styles.loading}>
+        <Image src="/iaa_logo.png" alt="IAA Logo" width={180} height={60} priority />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return isAuthPage ? <main className={styles.authOnlyContent}>{children}</main> : <LoginPage />;
+  }
+
   return (
     <div className={`${styles.navWrapper} ${isDrawerOpen ? styles.drawerOpen : ''}`}>
+      {showDisclaimer && !disclaimerAccepted && !isAuthPage && (
+        <Disclaimer onAccept={handleAcceptDisclaimer} />
+      )}
       <aside className={styles.sidebar}>
         <div className={styles.logoArea}>
-          <Image src="/iaa_logo.png" alt="IAA Logo" width={180} height={60} className={styles.logoImage} priority />
+          <Image src="/iaa_logo.png" alt="IAA Logo" width={180} height={60} className={styles.logoImage} style={{ width: 'auto', height: 'auto' }} priority />
         </div>
-        <NavLinks isAdmin={isAdmin} pathname={pathname} closeDrawer={closeDrawer} />
+        <NavLinks
+          isAdmin={isAdmin}
+          pathname={pathname}
+          closeDrawer={closeDrawer}
+          showPfmLeague={showPfmLeague}
+          showVoting={showVoting}
+          showDisclaimer={showDisclaimer}
+        />
         <div className={styles.footer}>
           <button className={`${styles.navLink} ${styles.signOutButton}`} onClick={handleSignOut} type="button">
             <MaterialIcon name="logout" />
@@ -143,7 +240,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
       <header className={styles.mobileHeader}>
         <div className={styles.mobileLogoArea}>
-          <Image src="/iaa_logo.png" alt="IAA Logo" width={142} height={48} className={styles.logoImage} priority />
+          <Image src="/iaa_logo.png" alt="IAA Logo" width={142} height={48} className={styles.logoImage} style={{ width: 'auto', height: 'auto' }} priority />
         </div>
         <button className={styles.menuButton} onClick={toggleDrawer} type="button" aria-label="Open navigation menu">
           <MaterialIcon name="menu" />
@@ -155,10 +252,42 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         <button className={styles.closeButton} onClick={toggleDrawer} type="button" aria-label="Close navigation menu">
           <MaterialIcon name="close" />
         </button>
-        <NavLinks isAdmin={isAdmin} pathname={pathname} closeDrawer={closeDrawer} />
+        <NavLinks
+          isAdmin={isAdmin}
+          pathname={pathname}
+          closeDrawer={closeDrawer}
+          showPfmLeague={showPfmLeague}
+          showVoting={showVoting}
+          showDisclaimer={showDisclaimer}
+        />
+        <div className={styles.mobileFooter}>
+          <button className={`${styles.navLink} ${styles.signOutButton}`} onClick={handleSignOut} type="button">
+            <MaterialIcon name="logout" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
 
-      <main className={styles.mainContent}>{children}</main>
+      <main className={styles.mainContent}>
+        <div className={styles.pageBody}>
+          {children}
+        </div>
+        {!isAuthPage && (
+          <footer className={styles.globalFooter}>
+            <p>© 2026 BibiniiTech Ghana. All rights reserved.</p>
+          </footer>
+        )}
+        {!isAuthPage && (
+          <div className={styles.globalFooterBg}>
+            <Image
+              src="/bg_footer.png"
+              alt=""
+              fill
+              style={{ objectFit: 'cover', objectPosition: 'bottom', opacity: 0.15 }}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }

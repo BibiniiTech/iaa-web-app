@@ -59,6 +59,7 @@ export default function ProfileCompletionPage() {
         uid: user.uid,
         firstName: firstName.trim(),
         surname: surname.trim(),
+        fullName: `${firstName.trim()} ${surname.trim()}`, // Added for Android compatibility
         email: user.email,
         phone: phone.trim(),
         institutionType,

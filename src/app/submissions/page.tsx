@@ -175,6 +175,17 @@ export default function SubmissionsPage() {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    if (!loading && window.location.hash === '#deadlines') {
+      setTimeout(() => {
+        const element = document.getElementById('deadlines');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [loading]);
+
   const openPortal = (portal: Exclude<SubmissionType, null>) => {
     const savedDraft = localStorage.getItem(`draft_${portal}`);
     if (savedDraft) {
@@ -238,13 +249,16 @@ export default function SubmissionsPage() {
       }
 
       // 2. Upload Files to Firebase Storage
-      const uploadedFileUrls: { name: string, url: string }[] = [];
+      const uploadedFileUrls: { name: string, url: string, storagePath: string }[] = [];
+      const timestamp = Date.now();
       for (const file of files) {
         const safeFileName = file.name.replace(/[\\/]/g, '_');
-        const fileRef = ref(storage, `submissions/${user.uid}/${category}/${Date.now()}_${safeFileName}`);
+        const storageName = `${timestamp}_${safeFileName}`;
+        const storagePath = `submissions/${user.uid}/${category}/${storageName}`;
+        const fileRef = ref(storage, storagePath);
         const snapshot = await uploadBytes(fileRef, file);
         const url = await getDownloadURL(snapshot.ref);
-        uploadedFileUrls.push({ name: file.name, url });
+        uploadedFileUrls.push({ name: file.name, url, storagePath });
       }
 
       // 3. Format Subject and Body text matching the Android App screens
@@ -286,7 +300,7 @@ export default function SubmissionsPage() {
         userId: user.uid,
         type: category,
         period: displayPeriod,
-        files: uploadedFileUrls,
+        files: uploadedFileUrls.map(f => ({ name: f.name, url: f.url })),
 
         // Android Sync Schema properties
         category: category,
@@ -295,8 +309,9 @@ export default function SubmissionsPage() {
         region: region,
         senderName: senderName,
         senderEmail: senderEmail,
-        timestamp: Date.now(), // Store as number in milliseconds to match System.currentTimeMillis()
-        fileNames: files.map(f => f.name),
+        timestamp: timestamp, // Use the same timestamp as the files
+        fileNames: uploadedFileUrls.map(f => f.storagePath.split('/').pop() || f.name),
+        filePaths: uploadedFileUrls.map(f => f.storagePath),
         reportName: reportName,
       });
 

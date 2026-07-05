@@ -164,8 +164,6 @@ export default function Home() {
           console.error("Error fetching dashboard data:", error);
         }
 
-      } else {
-        router.push('/login');
       }
       setLoading(false);
     });
@@ -186,6 +184,7 @@ export default function Home() {
             width={240}
             height={100}
             className={styles.logo}
+            style={{ width: 'auto', height: 'auto' }}
             priority
           />
         </div>
@@ -261,16 +260,6 @@ export default function Home() {
           </div>
           <p>{notice.content}</p>
         </div>
-      </div>
-
-      {/* Footer Background Image */}
-      <div className={styles.footerBg}>
-        <Image
-          src="/bg_footer.png"
-          alt=""
-          fill
-          style={{ objectFit: 'contain', objectPosition: 'bottom', opacity: 0.2 }}
-        />
       </div>
     </div>
   );

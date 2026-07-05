@@ -10,16 +10,22 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // isAdmin helper: checks the users collection in the (default) Firestore database
     function isAdmin() {
-      return isSignedIn()
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
-    match /submissions/{userId}/{category}/{fileName} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId)
-        && request.resource.size < 25 * 1024 * 1024;
-      allow update, delete: if false;
+    match /submissions/{userId}/{allPaths=**} {
+      // Users can read their own submissions, Admins can read everything
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Users can upload their own submissions (max 25MB)
+      allow write: if isOwner(userId) && request.resource.size < 25 * 1024 * 1024;
+
+      // Admins can delete submissions
+      allow delete: if isAdmin();
     }
 
     match /resources/{fileName} {
@@ -28,6 +34,11 @@ service firebase.storage {
     }
 
     match /documents/{category}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /voting/{fileName} {
       allow read: if true;
       allow write: if isAdmin();
     }

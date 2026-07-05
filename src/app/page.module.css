@@ -3,7 +3,6 @@
   flex-direction: column;
   min-height: 100%;
   position: relative;
-  padding-bottom: 180px; /* Space for footer background */
   overflow-x: hidden;
 }
 
@@ -28,6 +27,8 @@
 
 .logo {
   object-fit: contain;
+  width: auto;
+  height: auto;
 }
 
 .content {
@@ -59,6 +60,7 @@
   line-height: 1.6;
   max-width: 600px;
   margin: 0 auto;
+  white-space: pre-wrap;
 }
 
 .statsRow {
@@ -190,18 +192,7 @@
   font-size: 0.9rem;
   color: var(--neutral-slate);
   line-height: 1.5;
-}
-
-.footerBg {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 200px;
-  z-index: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: flex-end;
+  white-space: pre-wrap;
 }
 
 .loading {

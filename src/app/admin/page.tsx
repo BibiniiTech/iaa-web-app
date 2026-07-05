@@ -18,7 +18,7 @@ import { auth, db, storage } from '@/lib/firebase';
 import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
 import styles from './admin.module.css';
 
-type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'submissions';
+type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'submissions' | 'voting';
 type CategoryId = 'quarterly' | 'annual' | 'ccc' | 'soi' | 'other';
 type PortalDocCategory = 'legislations' | 'guidelines' | 'templates' | 'checklists' | 'training_resources' | 'others';
 
@@ -87,6 +87,7 @@ type Seminar = {
 
 type Submission = {
   id: string;
+  userId?: string;
   category: string;
   type?: string;
   institutionType: string;
@@ -96,8 +97,27 @@ type Submission = {
   senderEmail: string;
   timestamp: number;
   fileNames: string[];
+  filePaths?: string[];
   reportName: string;
   files?: { name: string; url: string }[];
+};
+
+type VotingOption = {
+  id: string;
+  text: string;
+  imageUrl: string;
+};
+
+type VotingCategory = {
+  id: string;
+  heading: string;
+  options: VotingOption[];
+};
+
+type VotingConfig = {
+  visible: boolean;
+  header: string;
+  categories: VotingCategory[];
 };
 
 const TABS: { id: Tab; label: string }[] = [
@@ -105,6 +125,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'emails', label: 'Submission Emails' },
   { id: 'pfmDocs', label: 'PFM & Portal Docs' },
   { id: 'dates', label: 'Dates & Seminars' },
+  { id: 'voting', label: 'Voting' },
   { id: 'submissions', label: 'Submissions Monitor' },
 ];
 
@@ -182,6 +203,29 @@ const DEFAULT_SEMINARS: Seminar[] = [
     registrationUrl: 'https://forms.gle/example2',
   },
 ];
+
+const DEFAULT_VOTING_CONFIG: VotingConfig = {
+  visible: false,
+  header: 'Favorite Foods',
+  categories: [
+    {
+      id: 'cat1',
+      heading: 'Fruits',
+      options: [
+        { id: 'opt1', text: 'Banana', imageUrl: '' },
+        { id: 'opt2', text: 'Orange', imageUrl: '' },
+      ],
+    },
+    {
+      id: 'cat2',
+      heading: 'Vegetables',
+      options: [
+        { id: 'opt1', text: 'Cabbages', imageUrl: '' },
+        { id: 'opt2', text: 'Carrots', imageUrl: '' },
+      ],
+    },
+  ],
+};
 
 const REPORT_FILTERS = [
   'All Reports',
@@ -461,6 +505,7 @@ export default function AdminPage() {
         {activeTab === 'emails' && <RecipientEmailsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'pfmDocs' && <PfmDocsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'dates' && <DatesSeminarsTab showMessage={showMessage} triggerSync={triggerSync} />}
+        {activeTab === 'voting' && <VotingTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'submissions' && <SubmissionsMonitorTab showMessage={showMessage} />}
       </div>
     </div>
@@ -835,6 +880,206 @@ function PfmDocsTab({
   );
 }
 
+function VotingTab({
+  showMessage,
+  triggerSync,
+}: {
+  showMessage: (type: 'success' | 'error', text: string) => void;
+  triggerSync: () => Promise<void>;
+}) {
+  const [config, setConfig] = useState<VotingConfig>(DEFAULT_VOTING_CONFIG);
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const snap = await getDoc(doc(db, 'config', 'voting_config'));
+      if (snap.exists()) {
+        setConfig(snap.data() as VotingConfig);
+      }
+    }
+    load().catch(() => showMessage('error', 'Failed to load voting configuration.'));
+  }, [showMessage]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'config', 'voting_config'), config);
+      await triggerSync();
+      showMessage('success', 'Voting configuration saved successfully!');
+    } catch {
+      showMessage('error', 'Error saving voting configuration.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRestart() {
+    if (!confirm('Are you sure you want to restart voting? This will clear all existing votes.')) return;
+    try {
+      const snap = await getDocs(collection(db, 'votes'));
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'votes', d.id))));
+      showMessage('success', 'Voting restarted and existing votes cleared.');
+    } catch {
+      showMessage('error', 'Error restarting voting.');
+    }
+  }
+
+  async function handleImageUpload(catIdx: number, optIdx: number, file: File) {
+    const timestamp = Date.now();
+    const storageRef = ref(storage, `voting/${timestamp}_${safeFileName(file.name)}`);
+    try {
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const newConfig = { ...config };
+      newConfig.categories[catIdx].options[optIdx].imageUrl = url;
+      setConfig(newConfig);
+      showMessage('success', 'Image uploaded.');
+    } catch {
+      showMessage('error', 'Image upload failed.');
+    }
+  }
+
+  function addCategory() {
+    setConfig({
+      ...config,
+      categories: [
+        ...config.categories,
+        { id: `cat${Date.now()}`, heading: '', options: [{ id: 'opt1', text: '', imageUrl: '' }] },
+      ],
+    });
+  }
+
+  function addOption(catIdx: number) {
+    const newConfig = { ...config };
+    newConfig.categories[catIdx].options.push({
+      id: `opt${Date.now()}`,
+      text: '',
+      imageUrl: '',
+    });
+    setConfig(newConfig);
+  }
+
+  async function exportResults() {
+    setExporting(true);
+    try {
+      const votesSnap = await getDocs(collection(db, 'votes'));
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const usersMap = Object.fromEntries(usersSnap.docs.map(d => [d.id, d.data()]));
+
+      let csv = 'Full Name,Email,Contact Number,Time Voted,Institution Type,Institution Name,Region';
+      config.categories.forEach(cat => {
+        csv += `,${cat.heading}`;
+      });
+      csv += '\n';
+
+      votesSnap.docs.forEach(d => {
+        const vote = d.data();
+        const user = usersMap[vote.userId] || {};
+        const fullName = `${user.firstName || ''} ${user.surname || ''}`.trim();
+        const time = formatDateTime(parseTimestamp(vote.timestamp));
+
+        let row = `"${fullName}","${user.email || ''}","${user.phoneNumber || ''}","${time}","${user.institutionType || ''}","${user.institution || ''}","${user.region || ''}"`;
+
+        config.categories.forEach(cat => {
+          const selection = vote.selections?.[cat.id];
+          const option = cat.options.find(o => o.id === selection);
+          row += `,"${option ? option.text : ''}"`;
+        });
+        csv += row + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'voting_results.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showMessage('success', 'Results exported to CSV.');
+    } catch (err) {
+      console.error(err);
+      showMessage('error', 'Error exporting results.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className={styles.stack}>
+      <CollapsibleCard title="Voting Visibility & Controls">
+        <Toggle label="Visible to Users" checked={config.visible} onChange={(visible) => setConfig({ ...config, visible })} />
+        <button className={styles.removeBtn} style={{ marginTop: '1rem', background: '#dc3545', color: 'white' }} onClick={handleRestart}>
+          Restart Voting (Clear All Votes)
+        </button>
+      </CollapsibleCard>
+
+      <CollapsibleCard title="Voting Header">
+        <Input label="Header Text" value={config.header} onChange={(header) => setConfig({ ...config, header })} />
+      </CollapsibleCard>
+
+      {config.categories.map((cat, catIdx) => (
+        <CollapsibleCard key={cat.id} title={`Category ${catIdx + 1}: ${cat.heading || '(No Heading)'}`}>
+          <Input label="Category Heading" value={cat.heading} onChange={(val) => {
+            const newConfig = { ...config };
+            newConfig.categories[catIdx].heading = val;
+            setConfig(newConfig);
+          }} />
+
+          <div className={styles.divider} />
+          <h4>Options</h4>
+          {cat.options.map((opt, optIdx) => (
+            <div key={opt.id} style={{ border: '1px solid #eee', padding: '10px', marginBottom: '10px', borderRadius: '4px' }}>
+              <Input label={`Option ${optIdx + 1} Text`} value={opt.text} onChange={(val) => {
+                const newConfig = { ...config };
+                newConfig.categories[catIdx].options[optIdx].text = val;
+                setConfig(newConfig);
+              }} />
+              <div className={styles.formGroup}>
+                <span>Option {optIdx + 1} Image</span>
+                {opt.imageUrl && <img src={opt.imageUrl} alt="" style={{ width: '50px', height: '50px', objectFit: 'cover', display: 'block', margin: '5px 0' }} />}
+                <input type="file" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(catIdx, optIdx, file);
+                }} />
+              </div>
+              {cat.options.length > 1 && (
+                <button className={styles.removeBtn} onClick={() => {
+                  const newConfig = { ...config };
+                  newConfig.categories[catIdx].options.splice(optIdx, 1);
+                  setConfig(newConfig);
+                }}>Remove Option</button>
+              )}
+            </div>
+          ))}
+          <button className={styles.addBtn} onClick={() => addOption(catIdx)}>Add Option</button>
+
+          <div style={{ marginTop: '1rem' }}>
+            <button className={styles.removeBtn} onClick={() => {
+              const newConfig = { ...config };
+              newConfig.categories.splice(catIdx, 1);
+              setConfig(newConfig);
+            }}>Remove Category Card</button>
+          </div>
+        </CollapsibleCard>
+      ))}
+
+      <button className={styles.addBtn} onClick={addCategory}>Add Category Card</button>
+
+      <button className={styles.saveButton} type="button" onClick={save} disabled={saving}>
+        {saving ? 'Saving...' : 'Save Voting Configuration'}
+      </button>
+
+      <div className={styles.divider} />
+      <button className={styles.saveButton} style={{ background: '#28a745' }} onClick={exportResults} disabled={exporting}>
+        {exporting ? 'Exporting...' : 'Export Voting Results (Excel/CSV)'}
+      </button>
+    </div>
+  );
+}
+
 function DatesSeminarsTab({
   showMessage,
   triggerSync,
@@ -986,7 +1231,9 @@ function SubmissionsMonitorTab({
             senderEmail: String(data.senderEmail || ''),
             timestamp: parseTimestamp(data.timestamp),
             fileNames: asStringList(data.fileNames),
+            filePaths: asStringList(data.filePaths),
             reportName: String(data.reportName || ''),
+            userId: data.userId ? String(data.userId) : undefined,
             files: Array.isArray(data.files) ? data.files as { name: string; url: string }[] : undefined,
           };
         })
@@ -1091,10 +1338,75 @@ function SubmissionItem({ submission }: { submission: Submission }) {
           <Detail label="Email:" value={submission.senderEmail} />
           <Detail label="Date/Time:" value={formatDateTime(submission.timestamp)} />
           {submission.region && <Detail label="Region:" value={submission.region} />}
-          {files.length > 0 && <Detail label="Files:" value={files.join(', ')} />}
+          <div className={styles.detailRow}>
+            <strong>Files:</strong>
+            <div className={styles.fileLinks}>
+              {submission.files && submission.files.length > 0 ? (
+                submission.files.map((file, idx) => (
+                  <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                    {file.name}
+                  </a>
+                ))
+              ) : (submission.filePaths && submission.filePaths.length > 0) ? (
+                submission.filePaths.map((path, idx) => (
+                  <FileDownloadLink
+                    key={idx}
+                    path={path}
+                    name={submission.fileNames[idx] || path.split('/').pop() || 'File'}
+                  />
+                ))
+              ) : (submission.fileNames && submission.fileNames.length > 0 && submission.userId) ? (
+                submission.fileNames.map((name, idx) => (
+                  <FileDownloadLink
+                    key={idx}
+                    path={`submissions/${submission.userId}/${submission.category}/${name}`}
+                    name={name}
+                  />
+                ))
+              ) : (submission.fileNames && submission.fileNames.length > 0) ? (
+                <span>{submission.fileNames.join(', ')}</span>
+              ) : (
+                <span className={styles.muted}>No files attached</span>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+function FileDownloadLink({ path, name }: { path: string, name: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    if (url) return; // Follow link
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const downloadUrl = await getDownloadURL(ref(storage, path));
+      setUrl(downloadUrl);
+      window.open(downloadUrl, '_blank');
+    } catch (err) {
+      console.error("Error fetching download URL for path:", path, err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <a
+      href={url || '#'}
+      onClick={handleClick}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${styles.fileLink} ${error ? styles.errorLink : ''} ${loading ? styles.loadingLink : ''}`}
+    >
+      {name} {loading && '...'} {error && '(Error)'}
+    </a>
   );
 }
 

@@ -1,0 +1,163 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  padding: 30px;
+  margin-bottom: 24px;
+  border: 1px solid #eee;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.statItem {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.statCount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: block;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.categoryHeading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.optionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.optionCard {
+  border: 2px solid #eee;
+  border-radius: 15px;
+  padding: 15px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.optionCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-5px);
+}
+
+.selectedOption {
+  border-color: var(--primary);
+  background: rgba(27, 54, 93, 0.05);
+}
+
+.optionImage {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.optionText {
+  font-weight: 600;
+  color: #444;
+}
+
+.navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+}
+
+.navButton {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.prevButton {
+  background: #eee;
+  color: #444;
+}
+
+.nextButton {
+  background: var(--primary);
+  color: white;
+}
+
+.submitButton {
+  background: #28a745;
+  color: white;
+  width: 100%;
+  padding: 15px;
+  font-size: 1.1rem;
+  margin-top: 20px;
+}
+
+.previewItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.previewItem:last-child {
+  border-bottom: none;
+}
+
+.previewCategory {
+  font-weight: 600;
+  color: #666;
+}
+
+.previewSelection {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.votedMessage {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.votedMessage h2 {
+  color: #28a745;
+  margin-bottom: 10px;
+}

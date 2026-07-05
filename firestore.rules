@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.uid == userId || isAdmin();
+    }
+
+    // Config collection
+    match /config/{document} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Portal documents
+    match /portal_documents/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Submissions
+    match /submissions/{subId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Voting results
+    match /votes/{userId} {
+      // Allow users to read all votes to calculate live stats on the client
+      // If privacy is a concern, consider moving stats to a separate document
+      allow read: if isSignedIn();
+      allow create, update: if request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import styles from './login.module.css';
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.push('/');
+      if (pathname === '/login') {
+        router.push('/');
+      }
     } catch (err: any) {
       setError('Authentication failed. Please verify credentials.');
       console.error(err);
@@ -44,7 +47,9 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      router.push('/');
+      if (pathname === '/login') {
+        router.push('/');
+      }
     } catch (err: any) {
       setError(err.message || 'Google sign in failed');
     } finally {
