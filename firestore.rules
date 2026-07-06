@@ -9,8 +9,21 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+        exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // Votes - Allow public read for results
+    match /votes/{voteId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Config collection - Allow public read for app configuration
+    match /config/{document} {
+      allow get, list: if true;
+      allow write: if isAdmin();
     }
 
     // User profiles
@@ -19,15 +32,9 @@ service cloud.firestore {
       allow write: if request.auth.uid == userId || isAdmin();
     }
 
-    // Config collection
-    match /config/{document} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
     // Portal documents
     match /portal_documents/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

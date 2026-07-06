@@ -18,7 +18,7 @@ import { auth, db, storage } from '@/lib/firebase';
 import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
 import styles from './admin.module.css';
 
-type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'submissions';
+type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'voting' | 'submissions';
 type CategoryId = 'quarterly' | 'annual' | 'ccc' | 'soi' | 'other';
 type PortalDocCategory = 'legislations' | 'guidelines' | 'templates' | 'checklists' | 'training_resources' | 'others';
 
@@ -85,6 +85,25 @@ type Seminar = {
   registrationUrl: string;
 };
 
+type VotingOption = {
+  id: string;
+  text: string;
+  imageUrl: string;
+};
+
+type VotingCategory = {
+  id: string;
+  name: string;
+  options: VotingOption[];
+  allowMultiple: boolean;
+};
+
+type VotingConfig = {
+  visible: boolean;
+  header: string;
+  categories: VotingCategory[];
+};
+
 type Submission = {
   id: string;
   userId?: string;
@@ -107,6 +126,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'emails', label: 'Submission Emails' },
   { id: 'pfmDocs', label: 'PFM & Portal Docs' },
   { id: 'dates', label: 'Dates & Seminars' },
+  { id: 'voting', label: 'Voting' },
   { id: 'submissions', label: 'Submissions Monitor' },
 ];
 
@@ -492,6 +512,7 @@ export default function AdminPage() {
         {activeTab === 'emails' && <RecipientEmailsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'pfmDocs' && <PfmDocsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'dates' && <DatesSeminarsTab showMessage={showMessage} triggerSync={triggerSync} />}
+        {activeTab === 'voting' && <VotingTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'submissions' && <SubmissionsMonitorTab showMessage={showMessage} />}
       </div>
     </div>
@@ -983,6 +1004,264 @@ function DatesSeminarsTab({
           ))}
         </div>
       </CollapsibleCard>
+    </div>
+  );
+}
+
+function VotingTab({
+  showMessage,
+  triggerSync,
+}: {
+  showMessage: (type: 'success' | 'error', text: string) => void;
+  triggerSync: () => Promise<void>;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [header, setHeader] = useState('');
+  const [categories, setCategories] = useState<VotingCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const snap = await getDoc(doc(db, 'config', 'voting_config'));
+      if (snap.exists()) {
+        const data = snap.data();
+        setVisible(data.visible ?? false);
+        setHeader(data.header || '');
+        setCategories(data.categories || []);
+      }
+      setLoading(false);
+    }
+    load().catch(() => showMessage('error', 'Failed to load voting configuration.'));
+  }, [showMessage]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'config', 'voting_config'), {
+        visible,
+        header,
+        categories,
+      });
+      await triggerSync();
+      showMessage('success', 'Voting configuration saved!');
+    } catch {
+      showMessage('error', 'Error saving voting configuration.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function exportResults() {
+    setExporting(true);
+    try {
+      const snap = await getDocs(collection(db, 'votes'));
+      if (snap.empty) {
+        showMessage('error', 'No votes recorded yet.');
+        return;
+      }
+
+      const votes = snap.docs.map(d => d.data());
+
+      let csv = 'Surname,First Name,Email,Contact,Institution Type,Region,Institution Name';
+      categories.forEach(cat => {
+        csv += `,"${cat.name}"`;
+      });
+      csv += '\n';
+
+      votes.forEach(vote => {
+        let row = `"${vote.surname || ''}","${vote.firstName || ''}","${vote.email || ''}","${vote.phone || ''}","${vote.institutionType || ''}","${vote.region || ''}","${vote.institution || ''}"`;
+        categories.forEach(cat => {
+          const selections = vote.selections?.[cat.id] || [];
+          const optionTexts = selections.map((optId: string) => {
+            return cat.options.find(o => o.id === optId)?.text || optId;
+          });
+          row += `,"${optionTexts.join('; ')}"`;
+        });
+        csv += row + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Voting_Results_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showMessage('success', 'Results exported successfully!');
+    } catch (err) {
+      console.error(err);
+      showMessage('error', 'Export failed.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  if (loading) return <p className={styles.muted}>Loading voting configuration...</p>;
+
+  return (
+    <div className={styles.stack}>
+      <CollapsibleCard title="Voting Manager">
+        <Toggle label="Voting Page Visibility" checked={visible} onChange={setVisible} />
+        <div className={styles.divider} />
+        <Input label="Main Voting Header (e.g. Favorite Foods)" value={header} onChange={setHeader} />
+
+        {categories.map((cat, catIdx) => (
+          <VotingCategoryEditor
+            key={cat.id}
+            category={cat}
+            onChange={(updated) => {
+              const next = [...categories];
+              next[catIdx] = updated;
+              setCategories(next);
+            }}
+            onDelete={() => {
+              setCategories(categories.filter((_, i) => i !== catIdx));
+            }}
+          />
+        ))}
+
+        <button
+          className={styles.addBtn}
+          type="button"
+          onClick={() => setCategories([...categories, {
+            id: Date.now().toString(),
+            name: '',
+            options: [
+              { id: '1', text: '', imageUrl: '' },
+              { id: '2', text: '', imageUrl: '' }
+            ],
+            allowMultiple: false
+          }])}
+        >
+          + Add New Category
+        </button>
+
+        <div className={styles.divider} />
+        <button className={styles.saveButton} type="button" onClick={save} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Voting Configuration'}
+        </button>
+
+        <div className={styles.divider} />
+        <button
+          className={styles.saveButton}
+          style={{ background: '#6c757d' }}
+          type="button"
+          onClick={exportResults}
+          disabled={exporting}
+        >
+          {exporting ? 'Exporting...' : 'Export Voting Results to Excel (CSV)'}
+        </button>
+      </CollapsibleCard>
+    </div>
+  );
+}
+
+function VotingCategoryEditor({
+  category,
+  onChange,
+  onDelete
+}: {
+  category: VotingCategory;
+  onChange: (cat: VotingCategory) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className={styles.card} style={{ margin: '10px 0', border: '1px solid #ddd' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h4 style={{ margin: 0 }}>Category: {category.name || 'New Category'}</h4>
+        <button className={styles.removeBtn} onClick={onDelete}>Delete Section</button>
+      </div>
+
+      <Input label="Category Heading" value={category.name} onChange={(name) => onChange({ ...category, name })} />
+
+      <div style={{ marginTop: '15px' }}>
+        {category.options.map((opt, optIdx) => (
+          <VotingOptionEditor
+            key={opt.id}
+            option={opt}
+            onChange={(updated) => {
+              const next = [...category.options];
+              next[optIdx] = updated;
+              onChange({ ...category, options: next });
+            }}
+            onDelete={() => {
+              onChange({ ...category, options: category.options.filter((_, i) => i !== optIdx) });
+            }}
+          />
+        ))}
+      </div>
+
+      <button
+        className={styles.addBtn}
+        style={{ marginTop: '10px' }}
+        type="button"
+        onClick={() => onChange({
+          ...category,
+          options: [...category.options, { id: Date.now().toString(), text: '', imageUrl: '' }]
+        })}
+      >
+        + Add New Option
+      </button>
+
+      <div className={styles.divider} />
+      <Toggle label="Allow Multiple Selection" checked={category.allowMultiple} onChange={(val) => onChange({ ...category, allowMultiple: val })} />
+    </div>
+  );
+}
+
+function VotingOptionEditor({
+  option,
+  onChange,
+  onDelete
+}: {
+  option: VotingOption;
+  onChange: (opt: VotingOption) => void;
+  onDelete: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImageUpload(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `voting/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      onChange({ ...option, imageUrl: url });
+    } catch (err) {
+      console.error(err);
+      alert('Image upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+      <div style={{ width: '60px', height: '60px', background: '#eee', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
+        {option.imageUrl ? (
+          <img src={option.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '0.8rem' }}>No Img</div>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleImageUpload(e.target.files?.[0])}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+        />
+        {uploading && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.6rem' }}>...</div>}
+      </div>
+
+      <div style={{ flex: 1 }}>
+        <Input label="Option Text" value={option.text} onChange={(text) => onChange({ ...option, text })} />
+      </div>
+
+      <button className={styles.removeBtn} onClick={onDelete}>×</button>
     </div>
   );
 }

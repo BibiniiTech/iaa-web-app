@@ -20,6 +20,7 @@ type IconName =
   | 'send'
   | 'school'
   | 'leaderboard'
+  | 'howToVote'
   | 'contactPage'
   | 'gavel'
   | 'adminPanelSettings'
@@ -42,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Submissions', href: '/submissions', icon: 'send' },
   { label: 'Trainings', href: '/trainings', icon: 'school' },
   { label: 'PFM League', href: '/pfm-league', icon: 'leaderboard' },
+  { label: 'Voting', href: '/voting', icon: 'howToVote' },
   { label: 'Contact', href: '/contact', icon: 'contactPage' },
   { label: 'Profile', href: '/profile', icon: 'person' },
   { label: 'Disclaimer', href: '/disclaimer', icon: 'gavel' },
@@ -55,6 +57,7 @@ const ICON_PATHS: Record<IconName, string> = {
   send: 'M2 21 23 12 2 3v7l15 2-15 2v7z',
   school: 'M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 13.5L5 12.67v4L12 20l7-3.33v-4L12 16.5z',
   leaderboard: 'M16 11V3H8v8H2v10h20V11h-6zM4 19v-6h4v6H4zm10 0h-4V5h4v14zm6 0h-4v-6h4v6z',
+  howToVote: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   contactPage: 'M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 15H7v-1.5c0-1.66 3.33-2.5 5-2.5s5 .84 5 2.5V17h-5zm0-5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm1-3V3.5L18.5 9H13z',
   gavel: 'm5.22 8.57 3.53 3.53 4.24-4.24L9.46 4.33a1.5 1.5 0 0 0-2.12 0L5.22 6.45a1.5 1.5 0 0 0 0 2.12zM16.54 11l-4.24 4.24 3.53 3.53a1.5 1.5 0 0 0 2.12 0l2.12-2.12a1.5 1.5 0 0 0 0-2.12L16.54 11zM10.5 15l-1.41-1.41L2.12 20.5a1 1 0 0 0 0 1.41l.71.71a1 1 0 0 0 1.41 0L10.5 15z',
   adminPanelSettings: 'M17 11c.34 0 .67.04 1 .1V5.27L10.5 2 3 5.27v4.91c0 4.54 3.2 8.79 7.5 9.82.55-.13 1.08-.32 1.59-.55A6.99 6.99 0 0 1 17 11zm0 2c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 1.38c.62 0 1.12.5 1.12 1.12s-.5 1.12-1.12 1.12-1.12-.5-1.12-1.12.5-1.12 1.12-1.12zm0 5.24c-.93 0-1.74-.46-2.24-1.17.05-.74 1.5-1.15 2.24-1.15.75 0 2.19.41 2.24 1.15-.5.71-1.31 1.17-2.24 1.17z',
@@ -79,18 +82,21 @@ function NavLinks({
   closeDrawer,
   showPfmLeague,
   showDisclaimer,
+  showVoting,
 }: {
   isAdmin: boolean;
   pathname: string;
   closeDrawer: () => void;
   showPfmLeague: boolean;
   showDisclaimer: boolean;
+  showVoting: boolean;
 }) {
   return (
     <div className={styles.navLinks}>
       {NAV_ITEMS.map((item) => {
         if (item.href === '/pfm-league' && !showPfmLeague) return null;
         if (item.href === '/disclaimer' && !showDisclaimer) return null;
+        if (item.href === '/voting' && !showVoting) return null;
         return (
           <Link
             key={item.href}
@@ -125,6 +131,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
   const [showPfmLeague, setShowPfmLeague] = useState(true);
+  const [showVoting, setShowVoting] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -132,10 +139,11 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const [userDoc, disclaimerSnap, pfmSnap] = await Promise.all([
+        const [userDoc, disclaimerSnap, pfmSnap, votingSnap] = await Promise.all([
           getDoc(doc(db, 'users', firebaseUser.uid)),
           getDoc(doc(db, 'config', 'show_disclaimer')),
           getDoc(doc(db, 'config', 'show_pfm_league')),
+          getDoc(doc(db, 'config', 'voting_config')),
         ]);
 
         setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
@@ -152,11 +160,16 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         if (pfmSnap.exists()) {
           setShowPfmLeague(pfmSnap.data().show ?? true);
         }
+
+        if (votingSnap.exists()) {
+          setShowVoting(votingSnap.data().visible ?? false);
+        }
       } else {
         setIsAdmin(false);
         setShowDisclaimer(false);
         setDisclaimerAccepted(true);
         setShowPfmLeague(true);
+        setShowVoting(false);
       }
       setLoading(false);
     });
@@ -172,7 +185,10 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     if (pathname === '/pfm-league' && !showPfmLeague) {
       router.push('/');
     }
-  }, [pathname, showDisclaimer, showPfmLeague, loading, router]);
+    if (pathname === '/voting' && !showVoting) {
+      router.push('/');
+    }
+  }, [pathname, showDisclaimer, showPfmLeague, showVoting, loading, router]);
 
   const handleAcceptDisclaimer = () => {
     localStorage.setItem('disclaimer_accepted', 'true');
@@ -216,6 +232,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           closeDrawer={closeDrawer}
           showPfmLeague={showPfmLeague}
           showDisclaimer={showDisclaimer}
+          showVoting={showVoting}
         />
         <div className={styles.footer}>
           <button className={`${styles.navLink} ${styles.signOutButton}`} onClick={handleSignOut} type="button">
@@ -245,6 +262,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           closeDrawer={closeDrawer}
           showPfmLeague={showPfmLeague}
           showDisclaimer={showDisclaimer}
+          showVoting={showVoting}
         />
         <div className={styles.mobileFooter}>
           <button className={`${styles.navLink} ${styles.signOutButton}`} onClick={handleSignOut} type="button">
