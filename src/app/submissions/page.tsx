@@ -125,6 +125,21 @@ export default function SubmissionsPage() {
           const userData = userDoc.data();
           setSenderName(`${userData.firstName || ''} ${userData.surname || ''}`.trim());
           setSenderEmail(String(userData.email || ''));
+
+          // Pre-fill institution data from profile
+          if (userData.institutionType) {
+            const type = userData.institutionType === 'MDA' ? 'MDA' : 'RCC/MMDA';
+            setInstitutionType(type);
+
+            if (type === 'MDA') {
+              setInstitutionName(userData.institutionName || userData.institution || '');
+            } else {
+              setRegion(userData.region || '');
+              // Try to find matching MMDA from profile institution field
+              const profInstitution = userData.institution || '';
+              setMmda(profInstitution);
+            }
+          }
         }
 
         // Fetch Portal Config (welcomeNotice from config/portal)
@@ -237,12 +252,21 @@ export default function SubmissionsPage() {
       } else {
         toRecipients.push(...await getMmdaTo(category));
         ccRecipients.push(...await getRegionCc(category, region));
-        if (category === 'annual' || category === 'quarterly') {
-          ccRecipients.push(...await getMmdaInstitutionCc(category, region, institution));
-        }
+        // Allow institution-specific CC for all categories to match Android flexibility
+        ccRecipients.push(...await getMmdaInstitutionCc(category, region, institution));
       }
 
-      if (toRecipients.length === 0) {
+      // Add the sender to CC so they have a copy of the submission
+      if (senderEmail) {
+        ccRecipients.push(senderEmail);
+      }
+
+      // Deduplicate and normalize emails
+      const uniqueTo = Array.from(new Set(toRecipients.map(e => e.toLowerCase().trim()))).filter(Boolean);
+      const uniqueCc = Array.from(new Set(ccRecipients.map(e => e.toLowerCase().trim())))
+        .filter(e => e && !uniqueTo.includes(e));
+
+      if (uniqueTo.length === 0) {
         setStatus({ type: 'error', message: 'No recipient emails configured for this category.' });
         setSubmitting(false);
         return;
@@ -267,24 +291,36 @@ export default function SubmissionsPage() {
 
       if (category === 'quarterly') {
         subject = `${quarter} Quarter Internal Audit Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Internal Audit Report for ${institution}\n\nSent by ${senderName} ${senderEmail}`;
+        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Internal Audit Report for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
       } else if (category === 'annual') {
         subject = institutionType === 'MDA' ? `${reportType} for ${institution}` : `${reportType} Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${reportType} for ${institution}\n\nSent by ${senderName} ${senderEmail}`;
+        bodyText = `Kindly find attached the submission of the ${reportType} for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
       } else if (category === 'ccc') {
         subject = `${quarter} Quarter CCC Review Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter CCC Review Report for ${institution}\n\nSent by ${senderName} ${senderEmail}`;
+        bodyText = `Kindly find attached the submission of the ${quarter} Quarter CCC Review Report for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
       } else if (category === 'soi') {
         subject = `${quarter} Quarter Status of Implementation on Audit Reports for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Quarter Status of Implementation on Audit Reports for ${institution}\n\nSent by ${senderName} ${senderEmail}`;
+        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Status of Implementation on Audit Reports for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
       } else {
         // 'other' report submission
         subject = `${period} from ${institution}`;
-        bodyText = `Kindly find attached the submission of ${period} from ${institution}\n\nSent by ${senderName} ${senderEmail}`;
+        bodyText = `Kindly find attached the submission of ${period} from ${institution}\n\nSent by ${senderName} (${senderEmail})`;
       }
 
       // Convert bodyText to HTML matching EmailSender.kt format
-      const htmlContent = `<html><body>${bodyText.replace(/\n/g, '<br>')}</body></html>`;
+      const htmlContent = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+              <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Submission Notification</h2>
+              <p>${bodyText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 0.9em; color: #7f8c8d;">
+                <p>This is an automated message from the IAA Submissions Portal.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
 
       // 4. Log Submission in Firestore matching FirebaseHelper.logSubmission
       const displayPeriod = (category === 'soi' || category === 'quarterly' || category === 'ccc') ? `${quarter} Quarter` :
@@ -320,8 +356,8 @@ export default function SubmissionsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: toRecipients.map((email: string) => ({ email })),
-          cc: ccRecipients.length > 0 ? ccRecipients.map((email: string) => ({ email })) : undefined,
+          to: uniqueTo.map((email: string) => ({ email })),
+          cc: uniqueCc.length > 0 ? uniqueCc.map((email: string) => ({ email })) : undefined,
           subject: subject,
           htmlContent: htmlContent,
           attachments: uploadedFileUrls.map(f => ({ url: f.url, name: f.name })),
@@ -329,7 +365,8 @@ export default function SubmissionsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send email notification');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to send email notification');
       }
 
       setStatus({ type: 'success', message: 'Report submitted successfully!' });

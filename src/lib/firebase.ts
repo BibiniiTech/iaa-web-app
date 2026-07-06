@@ -13,13 +13,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Next.js build-time fallback to prevent "auth/invalid-api-key" error
+const isBuildTime = typeof window === "undefined" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+const app = getApps().length > 0
+  ? getApp()
+  : initializeApp({
+      ...firebaseConfig,
+      apiKey: firebaseConfig.apiKey || "AIzaSy-DummyKey-For-Build-Time"
+    });
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Remote Config is browser-only (not available in SSR/Node)
+// Remote Config is browser-only
 const remoteConfig = typeof window !== "undefined" ? getRemoteConfig(app) : null;
 
 export { app, auth, db, storage, remoteConfig };

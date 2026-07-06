@@ -38,15 +38,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Voting results
-    match /votes/{userId} {
-      // Allow users to read all votes to calculate live stats on the client
-      // If privacy is a concern, consider moving stats to a separate document
-      allow read: if isSignedIn();
-      allow create, update: if request.auth.uid == userId;
-      allow delete: if isAdmin();
-    }
-
     // Default deny
     match /{path=**} {
       allow read, write: if isAdmin();

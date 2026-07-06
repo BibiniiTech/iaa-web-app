@@ -2,43 +2,36 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // Helper to check if user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // isAdmin helper: checks the users collection in the (default) Firestore database
+    // Helper to check if user is an admin via Firestore
     function isAdmin() {
       return isSignedIn() &&
         firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
-    match /submissions/{userId}/{allPaths=**} {
-      // Users can read their own submissions, Admins can read everything
-      allow read: if isOwner(userId) || isAdmin();
+    // Submissions: Match /submissions/UID/category/filename
+    match /submissions/{ownerId}/{allPaths=**} {
+      // Allow read/write if the user's UID matches the ownerId in the path
+      allow read, write: if isSignedIn() && request.auth.uid == ownerId;
 
-      // Users can upload their own submissions (max 25MB)
-      allow write: if isOwner(userId) && request.resource.size < 25 * 1024 * 1024;
-
-      // Admins can delete submissions
-      allow delete: if isAdmin();
+      // Also allow admins full access
+      allow read, write: if isAdmin();
     }
 
-    match /resources/{fileName} {
+    // Public resources
+    match /resources/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /documents/{category}/{fileName} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /voting/{fileName} {
+    // Portal documents
+    match /documents/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
     }

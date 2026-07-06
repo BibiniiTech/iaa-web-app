@@ -18,7 +18,7 @@ import { auth, db, storage } from '@/lib/firebase';
 import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
 import styles from './admin.module.css';
 
-type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'submissions' | 'voting';
+type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'submissions';
 type CategoryId = 'quarterly' | 'annual' | 'ccc' | 'soi' | 'other';
 type PortalDocCategory = 'legislations' | 'guidelines' | 'templates' | 'checklists' | 'training_resources' | 'others';
 
@@ -102,30 +102,11 @@ type Submission = {
   files?: { name: string; url: string }[];
 };
 
-type VotingOption = {
-  id: string;
-  text: string;
-  imageUrl: string;
-};
-
-type VotingCategory = {
-  id: string;
-  heading: string;
-  options: VotingOption[];
-};
-
-type VotingConfig = {
-  visible: boolean;
-  header: string;
-  categories: VotingCategory[];
-};
-
 const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Home & Contact' },
   { id: 'emails', label: 'Submission Emails' },
   { id: 'pfmDocs', label: 'PFM & Portal Docs' },
   { id: 'dates', label: 'Dates & Seminars' },
-  { id: 'voting', label: 'Voting' },
   { id: 'submissions', label: 'Submissions Monitor' },
 ];
 
@@ -204,29 +185,6 @@ const DEFAULT_SEMINARS: Seminar[] = [
   },
 ];
 
-const DEFAULT_VOTING_CONFIG: VotingConfig = {
-  visible: false,
-  header: 'Favorite Foods',
-  categories: [
-    {
-      id: 'cat1',
-      heading: 'Fruits',
-      options: [
-        { id: 'opt1', text: 'Banana', imageUrl: '' },
-        { id: 'opt2', text: 'Orange', imageUrl: '' },
-      ],
-    },
-    {
-      id: 'cat2',
-      heading: 'Vegetables',
-      options: [
-        { id: 'opt1', text: 'Cabbages', imageUrl: '' },
-        { id: 'opt2', text: 'Carrots', imageUrl: '' },
-      ],
-    },
-  ],
-};
-
 const REPORT_FILTERS = [
   'All Reports',
   'First Quarter Report',
@@ -264,7 +222,7 @@ function defaultCloudConfig(category: CategoryId): CloudConfig {
     mda_cc: [],
     mmda_to: ['clemzy93@gmail.com'],
     region_cc: emptyRegionCc(),
-    mmda_institution_cc: category === 'quarterly' || category === 'annual' ? emptyInstitutionCc() : undefined,
+    mmda_institution_cc: emptyInstitutionCc(),
   };
 }
 
@@ -391,34 +349,63 @@ function parsePfmCsv(csv: string): { mda: PFMSection[]; mmda: PFMSection[] } | n
 
 function getSubmissionClass(submission: Submission): string {
   const date = new Date(submission.timestamp);
-  const month = date.getMonth();
-  const day = date.getDate();
-  const category = submission.category || submission.type || '';
-  const reportName = submission.reportName || '';
+  const subYear = date.getFullYear();
+  const subMonth = date.getMonth(); // 0-based
+  const subDay = date.getDate();
+  const currentYear = new Date().getFullYear();
 
-  if (category === 'ccc' || reportName.toLowerCase().includes('ccc review')) {
-    const quarter = reportName.toLowerCase();
-    const deadlineDay = 10;
-    const deadlineMonth = quarter.includes('first') || quarter.includes('1st')
-      ? 3
-      : quarter.includes('second') || quarter.includes('2nd')
-        ? 6
-        : quarter.includes('third') || quarter.includes('3rd')
-          ? 9
-          : 0;
-    return month < deadlineMonth || (month === deadlineMonth && day < deadlineDay) ? styles.onTimeRow : styles.lateRow;
+  const category = (submission.category || submission.type || '').toLowerCase();
+  const reportName = (submission.reportName || '').toLowerCase();
+
+  // 1. Quarterly IA Reports
+  if (category === 'quarterly' || reportName.includes('quarter report')) {
+    if (subYear === currentYear) {
+      if (reportName.includes('fourth')) {
+        return subMonth === 0 ? styles.onTimeRow : subMonth > 0 ? styles.lateRow : '';
+      }
+      if (reportName.includes('first')) {
+        return subMonth === 3 ? styles.onTimeRow : subMonth > 3 ? styles.lateRow : '';
+      }
+      if (reportName.includes('second')) {
+        return subMonth === 6 ? styles.onTimeRow : subMonth > 6 ? styles.lateRow : '';
+      }
+      if (reportName.includes('third')) {
+        return subMonth === 9 ? styles.onTimeRow : subMonth > 9 ? styles.lateRow : '';
+      }
+    }
+    return '';
   }
 
-  if (category === 'quarterly' || reportName.toLowerCase().includes('quarter report')) {
-    const quarter = reportName.toLowerCase();
-    const deadlineMonth = quarter.includes('first')
-      ? 3
-      : quarter.includes('second')
-        ? 6
-        : quarter.includes('third')
-          ? 9
-          : 0;
-    return month === deadlineMonth ? styles.onTimeRow : month > deadlineMonth ? styles.lateRow : '';
+  // 2. CCC Review Reports
+  if (category === 'ccc' || reportName.includes('ccc review')) {
+    let quarter = '';
+    if (reportName.includes('first') || reportName.includes('1st')) quarter = 'First';
+    else if (reportName.includes('second') || reportName.includes('2nd')) quarter = 'Second';
+    else if (reportName.includes('third') || reportName.includes('3rd')) quarter = 'Third';
+    else if (reportName.includes('fourth') || reportName.includes('4th')) quarter = 'Fourth';
+    else {
+      // Legacy fallback based on submission timestamp
+      if ([11, 0, 1].includes(subMonth)) quarter = 'Fourth';
+      else if ([2, 3, 4].includes(subMonth)) quarter = 'First';
+      else if ([5, 6, 7].includes(subMonth)) quarter = 'Second';
+      else quarter = 'Third';
+    }
+
+    if (subYear === currentYear) {
+      if (quarter === 'Fourth') {
+        return subMonth === 0 && subDay < 10 ? styles.onTimeRow : styles.lateRow;
+      }
+      if (quarter === 'First') {
+        return subMonth < 3 || (subMonth === 3 && subDay < 10) ? styles.onTimeRow : styles.lateRow;
+      }
+      if (quarter === 'Second') {
+        return subMonth < 6 || (subMonth === 6 && subDay < 10) ? styles.onTimeRow : styles.lateRow;
+      }
+      if (quarter === 'Third') {
+        return subMonth < 9 || (subMonth === 9 && subDay < 10) ? styles.onTimeRow : styles.lateRow;
+      }
+    }
+    return '';
   }
 
   return '';
@@ -505,7 +492,6 @@ export default function AdminPage() {
         {activeTab === 'emails' && <RecipientEmailsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'pfmDocs' && <PfmDocsTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'dates' && <DatesSeminarsTab showMessage={showMessage} triggerSync={triggerSync} />}
-        {activeTab === 'voting' && <VotingTab showMessage={showMessage} triggerSync={triggerSync} />}
         {activeTab === 'submissions' && <SubmissionsMonitorTab showMessage={showMessage} />}
       </div>
     </div>
@@ -713,19 +699,15 @@ function RecipientEmailsTab({
         />
         <Input label={`CC Recipients for ${selectedRegion} Region`} value={(config.region_cc[selectedRegion] || []).join(', ')} onChange={updateRegionCc} />
 
-        {(selectedCategory === 'quarterly' || selectedCategory === 'annual') && (
-          <>
-            <div className={styles.divider} />
-            <h3 className={styles.inlineTitle}>Institution-Specific CC</h3>
-            <Select
-              label="Select Institution (MMDA)"
-              value={selectedMmda}
-              options={(MMDA_DATA[selectedRegion] || []).map((institution) => ({ value: institution, label: institution }))}
-              onChange={setSelectedMmda}
-            />
-            <Input label={`CC Recipients for ${selectedMmda}`} value={institutionCc.join(', ')} onChange={updateInstitutionCc} />
-          </>
-        )}
+        <div className={styles.divider} />
+        <h3 className={styles.inlineTitle}>Institution-Specific CC</h3>
+        <Select
+          label="Select Institution (MMDA)"
+          value={selectedMmda}
+          options={(MMDA_DATA[selectedRegion] || []).map((institution) => ({ value: institution, label: institution }))}
+          onChange={setSelectedMmda}
+        />
+        <Input label={`CC Recipients for ${selectedMmda}`} value={institutionCc.join(', ')} onChange={updateInstitutionCc} />
       </CollapsibleCard>
 
       <button className={styles.saveButton} type="button" onClick={save} disabled={saving}>
@@ -876,206 +858,6 @@ function PfmDocsTab({
           </div>
         )}
       </CollapsibleCard>
-    </div>
-  );
-}
-
-function VotingTab({
-  showMessage,
-  triggerSync,
-}: {
-  showMessage: (type: 'success' | 'error', text: string) => void;
-  triggerSync: () => Promise<void>;
-}) {
-  const [config, setConfig] = useState<VotingConfig>(DEFAULT_VOTING_CONFIG);
-  const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      const snap = await getDoc(doc(db, 'config', 'voting_config'));
-      if (snap.exists()) {
-        setConfig(snap.data() as VotingConfig);
-      }
-    }
-    load().catch(() => showMessage('error', 'Failed to load voting configuration.'));
-  }, [showMessage]);
-
-  async function save() {
-    setSaving(true);
-    try {
-      await setDoc(doc(db, 'config', 'voting_config'), config);
-      await triggerSync();
-      showMessage('success', 'Voting configuration saved successfully!');
-    } catch {
-      showMessage('error', 'Error saving voting configuration.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleRestart() {
-    if (!confirm('Are you sure you want to restart voting? This will clear all existing votes.')) return;
-    try {
-      const snap = await getDocs(collection(db, 'votes'));
-      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'votes', d.id))));
-      showMessage('success', 'Voting restarted and existing votes cleared.');
-    } catch {
-      showMessage('error', 'Error restarting voting.');
-    }
-  }
-
-  async function handleImageUpload(catIdx: number, optIdx: number, file: File) {
-    const timestamp = Date.now();
-    const storageRef = ref(storage, `voting/${timestamp}_${safeFileName(file.name)}`);
-    try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      const newConfig = { ...config };
-      newConfig.categories[catIdx].options[optIdx].imageUrl = url;
-      setConfig(newConfig);
-      showMessage('success', 'Image uploaded.');
-    } catch {
-      showMessage('error', 'Image upload failed.');
-    }
-  }
-
-  function addCategory() {
-    setConfig({
-      ...config,
-      categories: [
-        ...config.categories,
-        { id: `cat${Date.now()}`, heading: '', options: [{ id: 'opt1', text: '', imageUrl: '' }] },
-      ],
-    });
-  }
-
-  function addOption(catIdx: number) {
-    const newConfig = { ...config };
-    newConfig.categories[catIdx].options.push({
-      id: `opt${Date.now()}`,
-      text: '',
-      imageUrl: '',
-    });
-    setConfig(newConfig);
-  }
-
-  async function exportResults() {
-    setExporting(true);
-    try {
-      const votesSnap = await getDocs(collection(db, 'votes'));
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const usersMap = Object.fromEntries(usersSnap.docs.map(d => [d.id, d.data()]));
-
-      let csv = 'Full Name,Email,Contact Number,Time Voted,Institution Type,Institution Name,Region';
-      config.categories.forEach(cat => {
-        csv += `,${cat.heading}`;
-      });
-      csv += '\n';
-
-      votesSnap.docs.forEach(d => {
-        const vote = d.data();
-        const user = usersMap[vote.userId] || {};
-        const fullName = `${user.firstName || ''} ${user.surname || ''}`.trim();
-        const time = formatDateTime(parseTimestamp(vote.timestamp));
-
-        let row = `"${fullName}","${user.email || ''}","${user.phoneNumber || ''}","${time}","${user.institutionType || ''}","${user.institution || ''}","${user.region || ''}"`;
-
-        config.categories.forEach(cat => {
-          const selection = vote.selections?.[cat.id];
-          const option = cat.options.find(o => o.id === selection);
-          row += `,"${option ? option.text : ''}"`;
-        });
-        csv += row + '\n';
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'voting_results.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showMessage('success', 'Results exported to CSV.');
-    } catch (err) {
-      console.error(err);
-      showMessage('error', 'Error exporting results.');
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  return (
-    <div className={styles.stack}>
-      <CollapsibleCard title="Voting Visibility & Controls">
-        <Toggle label="Visible to Users" checked={config.visible} onChange={(visible) => setConfig({ ...config, visible })} />
-        <button className={styles.removeBtn} style={{ marginTop: '1rem', background: '#dc3545', color: 'white' }} onClick={handleRestart}>
-          Restart Voting (Clear All Votes)
-        </button>
-      </CollapsibleCard>
-
-      <CollapsibleCard title="Voting Header">
-        <Input label="Header Text" value={config.header} onChange={(header) => setConfig({ ...config, header })} />
-      </CollapsibleCard>
-
-      {config.categories.map((cat, catIdx) => (
-        <CollapsibleCard key={cat.id} title={`Category ${catIdx + 1}: ${cat.heading || '(No Heading)'}`}>
-          <Input label="Category Heading" value={cat.heading} onChange={(val) => {
-            const newConfig = { ...config };
-            newConfig.categories[catIdx].heading = val;
-            setConfig(newConfig);
-          }} />
-
-          <div className={styles.divider} />
-          <h4>Options</h4>
-          {cat.options.map((opt, optIdx) => (
-            <div key={opt.id} style={{ border: '1px solid #eee', padding: '10px', marginBottom: '10px', borderRadius: '4px' }}>
-              <Input label={`Option ${optIdx + 1} Text`} value={opt.text} onChange={(val) => {
-                const newConfig = { ...config };
-                newConfig.categories[catIdx].options[optIdx].text = val;
-                setConfig(newConfig);
-              }} />
-              <div className={styles.formGroup}>
-                <span>Option {optIdx + 1} Image</span>
-                {opt.imageUrl && <img src={opt.imageUrl} alt="" style={{ width: '50px', height: '50px', objectFit: 'cover', display: 'block', margin: '5px 0' }} />}
-                <input type="file" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImageUpload(catIdx, optIdx, file);
-                }} />
-              </div>
-              {cat.options.length > 1 && (
-                <button className={styles.removeBtn} onClick={() => {
-                  const newConfig = { ...config };
-                  newConfig.categories[catIdx].options.splice(optIdx, 1);
-                  setConfig(newConfig);
-                }}>Remove Option</button>
-              )}
-            </div>
-          ))}
-          <button className={styles.addBtn} onClick={() => addOption(catIdx)}>Add Option</button>
-
-          <div style={{ marginTop: '1rem' }}>
-            <button className={styles.removeBtn} onClick={() => {
-              const newConfig = { ...config };
-              newConfig.categories.splice(catIdx, 1);
-              setConfig(newConfig);
-            }}>Remove Category Card</button>
-          </div>
-        </CollapsibleCard>
-      ))}
-
-      <button className={styles.addBtn} onClick={addCategory}>Add Category Card</button>
-
-      <button className={styles.saveButton} type="button" onClick={save} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Voting Configuration'}
-      </button>
-
-      <div className={styles.divider} />
-      <button className={styles.saveButton} style={{ background: '#28a745' }} onClick={exportResults} disabled={exporting}>
-        {exporting ? 'Exporting...' : 'Export Voting Results (Excel/CSV)'}
-      </button>
     </div>
   );
 }

@@ -1,0 +1,224 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.profileHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  background-color: var(--primary-light);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--primary);
+}
+
+.avatar svg {
+  width: 48px;
+  height: 48px;
+}
+
+.email {
+  color: var(--neutral-slate);
+  font-size: 0.9rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.section h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--foreground);
+}
+
+.form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.formGroup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 1rem;
+  color: var(--neutral-slate);
+  width: 20px;
+  height: 20px;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.saveButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.saveButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 2rem 0;
+}
+
+.expandable {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.expandableHeader {
+  width: 100%;
+  padding: 1rem;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.expandableIcon {
+  color: var(--primary);
+  width: 20px;
+  height: 20px;
+}
+
+.expandableTitle {
+  flex: 1;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.expandIcon {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s;
+}
+
+.expanded .expandIcon {
+  transform: rotate(180deg);
+}
+
+.expandableContent {
+  padding: 0 1rem 1rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--neutral-slate);
+}
+
+.deleteSection {
+  display: grid;
+  gap: 1rem;
+}
+
+.deleteNote {
+  color: var(--error-red);
+}
+
+.deleteButton {
+  background: none;
+  border: 1px solid var(--error-red);
+  color: var(--error-red);
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.confirmDeleteRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.confirmDeleteBtn {
+  background: var(--error-red);
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cancelDeleteBtn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--foreground);
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.infoList {
+  display: grid;
+  gap: 0.25rem;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 1rem;
+  }
+}

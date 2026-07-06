@@ -1,38 +1,40 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { collection, doc, getDoc, getDocs, setDoc, query, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { collection, doc, getDoc, getDocs, query, where, orderBy, runTransaction } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import styles from './voting.module.css';
 
-type VotingOption = {
+type PollOption = {
   id: string;
   text: string;
   imageUrl: string;
+  votes: number;
 };
 
-type VotingCategory = {
+type Poll = {
   id: string;
-  heading: string;
-  options: VotingOption[];
+  question: string;
+  isActive: boolean;
+  timestamp: number;
+  totalVotes: number;
+  options: PollOption[];
 };
 
 type VotingConfig = {
   visible: boolean;
   header: string;
-  categories: VotingCategory[];
 };
 
 export default function VotingPage() {
   const [config, setConfig] = useState<VotingConfig | null>(null);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [votedPollIds, setVotedPollIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [hasVoted, setHasVoted] = useState(false);
-  const [currentIdx, setCurrentIdx] = useState(0);
   const [selections, setSelections] = useState<Record<string, string>>({});
-  const [allVotes, setAllVotes] = useState<any[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingPollId, setSubmittingPollId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -45,156 +47,166 @@ export default function VotingPage() {
     async function load() {
       if (!user) return;
 
-      const [configSnap, voteSnap, allVotesSnap] = await Promise.all([
-        getDoc(doc(db, 'config', 'voting_config')),
-        getDoc(doc(db, 'votes', user.uid)),
-        getDocs(collection(db, 'votes'))
-      ]);
+      try {
+        const configSnap = await getDoc(doc(db, 'config', 'voting_config'));
+        if (configSnap.exists()) {
+          setConfig(configSnap.data() as VotingConfig);
+        }
 
-      if (configSnap.exists()) {
-        setConfig(configSnap.data() as VotingConfig);
+        const pollsSnap = await getDocs(query(collection(db, 'polls'), where('isActive', '==', true), orderBy('timestamp', 'desc')));
+        const activePolls = pollsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Poll));
+        setPolls(activePolls);
+
+        const votesSnap = await getDocs(query(collection(db, 'votes'), where('userId', '==', user.uid)));
+        const votedIds = new Set<string>();
+        votesSnap.docs.forEach(d => {
+           votedIds.add(d.data().pollId);
+        });
+        setVotedPollIds(votedIds);
+      } catch (err) {
+        console.error("Error loading voting data:", err);
+      } finally {
+        setLoading(false);
       }
-
-      if (voteSnap.exists()) {
-        setHasVoted(true);
-      }
-
-      setAllVotes(allVotesSnap.docs.map(d => d.data()));
-      setLoading(false);
     }
     load();
   }, [user]);
 
-  const stats = useMemo(() => {
-    if (!config || !allVotes.length) return {};
-    const currentCat = config.categories[currentIdx];
-    if (!currentCat) return {};
-
-    const counts: Record<string, number> = {};
-    currentCat.options.forEach(opt => counts[opt.id] = 0);
-
-    allVotes.forEach(vote => {
-      const selection = vote.selections?.[currentCat.id];
-      if (selection && counts[selection] !== undefined) {
-        counts[selection]++;
-      }
-    });
-
-    return counts;
-  }, [config, allVotes, currentIdx]);
-
-  if (loading) return <div className={styles.container}>Loading Voting...</div>;
-  if (!config || !config.visible) return <div className={styles.container}>Voting is currently closed.</div>;
-  if (hasVoted) return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.votedMessage}>
-          <h2>Thank you for voting!</h2>
-          <p>Your selections have been recorded.</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const categories = config.categories;
-  const isPreview = currentIdx === categories.length;
-  const currentCategory = categories[currentIdx];
-
-  async function handleSubmit() {
+  async function handleVote(pollId: string) {
     if (!user) return;
-    setIsSubmitting(true);
+    const optionId = selections[pollId];
+    if (!optionId) {
+      alert('Please select an option before voting.');
+      return;
+    }
+
+    setSubmittingPollId(pollId);
     try {
-      await setDoc(doc(db, 'votes', user.uid), {
-        userId: user.uid,
-        selections,
-        timestamp: Date.now()
+      await runTransaction(db, async (transaction) => {
+        const voteRef = doc(db, 'votes', `${user.uid}_${pollId}`);
+        const pollRef = doc(db, 'polls', pollId);
+
+        const voteDoc = await transaction.get(voteRef);
+        if (voteDoc.exists()) {
+          throw new Error('You have already voted in this poll.');
+        }
+
+        const pollDoc = await transaction.get(pollRef);
+        if (!pollDoc.exists()) {
+          throw new Error('Poll does not exist.');
+        }
+
+        const pollData = pollDoc.data() as Poll;
+        const optionIndex = pollData.options.findIndex(o => o.id === optionId);
+        if (optionIndex === -1) {
+          throw new Error('Option not found.');
+        }
+
+        pollData.options[optionIndex].votes += 1;
+        pollData.totalVotes += 1;
+
+        transaction.set(voteRef, {
+          userId: user.uid,
+          pollId: pollId,
+          optionId: optionId,
+          timestamp: Date.now()
+        });
+        transaction.update(pollRef, {
+          options: pollData.options,
+          totalVotes: pollData.totalVotes
+        });
       });
-      setHasVoted(true);
-    } catch (err) {
-      alert('Error submitting vote. Please try again.');
+
+      setVotedPollIds(prev => new Set(prev).add(pollId));
+      
+      setPolls(prevPolls => prevPolls.map(p => {
+        if (p.id === pollId) {
+          const newOptions = [...p.options];
+          const optIdx = newOptions.findIndex(o => o.id === optionId);
+          if (optIdx !== -1) {
+            newOptions[optIdx] = { ...newOptions[optIdx], votes: newOptions[optIdx].votes + 1 };
+          }
+          return { ...p, options: newOptions, totalVotes: p.totalVotes + 1 };
+        }
+        return p;
+      }));
+      
+    } catch (err: any) {
+      alert(err.message || 'Error submitting vote. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setSubmittingPollId(null);
     }
   }
 
-  const canGoNext = isPreview ? false : !!selections[currentCategory.id];
+  if (loading) return <div className={styles.container}>Loading Voting...</div>;
+  if (!config || !config.visible) return <div className={styles.container}>Voting is currently closed.</div>;
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>{config.header}</h1>
-        <p>Step {currentIdx + 1} of {categories.length + 1}</p>
       </div>
 
-      {!isPreview ? (
-        <>
-          <div className={styles.card}>
-            <h3>Live Stats</h3>
-            <div className={styles.statsGrid}>
-              {currentCategory.options.map(opt => (
-                <div key={opt.id} className={styles.statItem}>
-                  <span className={styles.statCount}>{stats[opt.id] || 0}</span>
-                  <span className={styles.statLabel}>{opt.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.card}>
-            <h2 className={styles.categoryHeading}>{currentCategory.heading}</h2>
-            <div className={styles.optionsGrid}>
-              {currentCategory.options.map(opt => (
-                <div
-                  key={opt.id}
-                  className={`${styles.optionCard} ${selections[currentCategory.id] === opt.id ? styles.selectedOption : ''}`}
-                  onClick={() => setSelections({...selections, [currentCategory.id]: opt.id})}
-                >
-                  {opt.imageUrl && <img src={opt.imageUrl} alt={opt.text} className={styles.optionImage} />}
-                  <span className={styles.optionText}>{opt.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      ) : (
+      {polls.length === 0 ? (
         <div className={styles.card}>
-          <h2 className={styles.categoryHeading}>Review Your Selections</h2>
-          {categories.map(cat => (
-            <div key={cat.id} className={styles.previewItem}>
-              <span className={styles.previewCategory}>{cat.heading}</span>
-              <span className={styles.previewSelection}>
-                {cat.options.find(o => o.id === selections[cat.id])?.text || 'None'}
-              </span>
-            </div>
-          ))}
-          <button
-            className={`${styles.navButton} ${styles.submitButton}`}
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Submitting...' : 'Confirm & Submit Vote'}
-          </button>
+          <p>No active polls at the moment.</p>
         </div>
+      ) : (
+        polls.map(poll => {
+          const hasVoted = votedPollIds.has(poll.id);
+          const isSubmitting = submittingPollId === poll.id;
+          
+          return (
+            <div key={poll.id} className={styles.card} style={{ marginBottom: '2rem' }}>
+              <h2 className={styles.categoryHeading}>{poll.question}</h2>
+              <div className={styles.optionsGrid}>
+                {poll.options.map(opt => {
+                  const isSelected = selections[poll.id] === opt.id;
+                  const percentage = poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0;
+                  return (
+                    <div
+                      key={opt.id}
+                      className={`${styles.optionCard} ${isSelected && !hasVoted ? styles.selectedOption : ''}`}
+                      onClick={() => !hasVoted && setSelections({ ...selections, [poll.id]: opt.id })}
+                      style={{ cursor: hasVoted ? 'default' : 'pointer' }}
+                    >
+                      {opt.imageUrl && <img src={opt.imageUrl} alt={opt.text} className={styles.optionImage} />}
+                      <span className={styles.optionText}>{opt.text}</span>
+                      {hasVoted && (
+                        <div style={{ marginTop: '10px', width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '5px' }}>
+                            <span>{opt.votes} votes</span>
+                            <span>{percentage}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '8px', background: '#e0e0e0', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${percentage}%`, height: '100%', background: '#0056b3' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {!hasVoted && (
+                <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+                  <button 
+                    className={`${styles.navButton} ${styles.submitButton}`} 
+                    onClick={() => handleVote(poll.id)}
+                    disabled={isSubmitting || !selections[poll.id]}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Cast Vote'}
+                  </button>
+                </div>
+              )}
+              {hasVoted && (
+                <div style={{ marginTop: '1rem', textAlign: 'center', color: '#28a745', fontWeight: 'bold' }}>
+                  You have already voted in this poll.
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
-
-      <div className={styles.navigation}>
-        <button
-          className={`${styles.navButton} ${styles.prevButton}`}
-          onClick={() => setCurrentIdx(currentIdx - 1)}
-          disabled={currentIdx === 0}
-        >
-          Previous
-        </button>
-        {!isPreview && (
-          <button
-            className={`${styles.navButton} ${styles.nextButton}`}
-            onClick={() => setCurrentIdx(currentIdx + 1)}
-            disabled={!canGoNext}
-          >
-            Next
-          </button>
-        )}
-      </div>
     </div>
   );
 }

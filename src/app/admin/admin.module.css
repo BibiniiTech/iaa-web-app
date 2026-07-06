@@ -239,11 +239,11 @@
 }
 
 .onTimeRow {
-  background: rgba(46, 125, 50, 0.12);
+  background: rgba(76, 175, 80, 0.157);
 }
 
 .lateRow {
-  background: rgba(198, 40, 40, 0.12);
+  background: rgba(244, 67, 54, 0.157);
 }
 
 .submissionSummary {

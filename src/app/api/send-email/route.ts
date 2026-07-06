@@ -91,10 +91,16 @@ export async function POST(request: Request) {
     });
 
     const responseText = await response.text();
+    console.log('Brevo API Response Status:', response.status);
+    console.log('Brevo API Response Body:', responseText);
+
     const data = responseText ? tryParseJson(responseText) : {};
 
     if (!response.ok) {
-      return NextResponse.json({ error: data.message || 'Failed to send email' }, { status: response.status });
+      return NextResponse.json({
+        error: data.message || 'Failed to send email',
+        details: data
+      }, { status: response.status });
     }
 
     return NextResponse.json({ success: true, messageId: data.messageId });
