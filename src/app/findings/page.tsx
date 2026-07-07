@@ -132,11 +132,60 @@ const resolveLawKey = (lawString: string): string | null => {
   return sectionNum ? `${actName}_${sectionNum}` : null;
 };
 
+interface CriteriaItemProps {
+  c: string;
+  searchQuery: string;
+  highlightSearchTerms: (text: string, query: string) => React.ReactNode;
+}
+
+function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const key = resolveLawKey(c);
+  const detailText = key ? (lawDetails as Record<string, string>)[key] : null;
+
+  const handleCopyLaw = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = `${c}\n\n${detailText || "Full section text not found in database."}`;
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Law reference copied to clipboard");
+    });
+  };
+
+  return (
+    <div
+      className={styles.criteriaItem}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      <div className={styles.criteriaHeader}>
+        <span className={styles.gavelIcon}>⚖️</span>
+        <span className={styles.criteriaLabel}>{highlightSearchTerms(c, searchQuery)}</span>
+        <button
+          className={styles.copyIconBtn}
+          onClick={handleCopyLaw}
+          title="Copy law reference and text"
+        >
+          📋
+        </button>
+        <span className={`${styles.expandChevron} ${isExpanded ? styles.rotated : ''}`}>
+          ▼
+        </span>
+      </div>
+      {isExpanded && (
+        <div className={styles.lawDetailContainer} onClick={e => e.stopPropagation()}>
+          <p className={styles.lawDetailText}>
+            {detailText || "Full section text not found in database. Search the web for context."}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FindingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [activeLawDialog, setActiveLawDialog] = useState<{ label: string, detail: string | null } | null>(null);
 
   const findings = findingsData as Finding[];
 
@@ -222,13 +271,6 @@ export default function FindingsPage() {
       showCategoryMismatchPrompt: !!mismatch
     };
   }, [searchQuery, activeCategoryFilter, findings, wordWeights]);
-
-  const handleCopy = (finding: Finding) => {
-    const text = `Observation: ${finding.observation}\nCriteria: ${finding.criteria.join(", ")}`;
-    navigator.clipboard.writeText(text).then(() => {
-      alert("Copied to clipboard");
-    });
-  };
 
   const highlightSearchTerms = (text: string, query: string) => {
     if (!query.trim()) return text;
@@ -340,13 +382,6 @@ export default function FindingsPage() {
                         {highlightSearchTerms(finding.observation, searchQuery)}
                       </h3>
                     </div>
-                    <button
-                      className={styles.copyButton}
-                      onClick={(e) => { e.stopPropagation(); handleCopy(finding); }}
-                      title="Copy finding"
-                    >
-                      📋
-                    </button>
                   </div>
 
                   {expandedId === finding.id ? (
@@ -356,21 +391,12 @@ export default function FindingsPage() {
                         <h4>Laws / Criteria Reference:</h4>
                         <div className={styles.criteriaList}>
                           {finding.criteria.map((c, i) => (
-                            <div
+                            <CriteriaItem
                               key={i}
-                              className={styles.criteriaItem}
-                              onClick={() => {
-                                const key = resolveLawKey(c);
-                                setActiveLawDialog({
-                                  label: c,
-                                  detail: key ? (lawDetails as any)[key] : null
-                                });
-                              }}
-                            >
-                              <span className={styles.gavelIcon}>⚖️</span>
-                              <span className={styles.criteriaLabel}>{highlightSearchTerms(c, searchQuery)}</span>
-                              <span className={styles.openIcon}>↗</span>
-                            </div>
+                              c={c}
+                              searchQuery={searchQuery}
+                              highlightSearchTerms={highlightSearchTerms}
+                            />
                           ))}
                         </div>
                       </div>
@@ -400,33 +426,6 @@ export default function FindingsPage() {
           </>
         )}
       </div>
-
-      {activeLawDialog && (
-        <div className={styles.modalOverlay} onClick={() => setActiveLawDialog(null)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <h3>Applicable Law Details</h3>
-            <div className={styles.modalBody}>
-              <p className={styles.lawTitle}>{activeLawDialog.label}</p>
-              <hr />
-              <p className={styles.lawDetail}>
-                {activeLawDialog.detail || "Full section text not found in database. Search the web for context."}
-              </p>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.searchWebButton}
-                onClick={() => {
-                  const q = activeLawDialog.detail || activeLawDialog.label;
-                  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
-                }}
-              >
-                Search Web
-              </button>
-              <button className={styles.closeButton} onClick={() => setActiveLawDialog(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
