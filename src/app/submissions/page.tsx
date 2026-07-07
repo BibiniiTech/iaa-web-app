@@ -9,6 +9,7 @@ import { auth, db, storage } from '@/lib/firebase';
 import styles from './submissions.module.css';
 import FileUpload from '@/components/submissions/FileUpload';
 import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
+import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 import {
   getMdaTo,
   getMdaCc,
@@ -246,7 +247,7 @@ export default function SubmissionsPage() {
       const toRecipients: string[] = [];
       const ccRecipients: string[] = [];
 
-      if (institutionType === 'MDA') {
+      if (institutionType === 'MDA' || institutionType === 'SOE') {
         toRecipients.push(...await getMdaTo(category));
         ccRecipients.push(...await getMdaCc(category));
       } else {
@@ -477,23 +478,33 @@ export default function SubmissionsPage() {
             <select
               className={styles.selectField}
               value={institutionType}
-              onChange={(e) => setInstitutionType(e.target.value)}
+              onChange={(e) => {
+                setInstitutionType(e.target.value);
+                setInstitutionName('');
+                setRegion('');
+                setMmda('');
+              }}
             >
               <option value="MDA">MDA</option>
+              <option value="SOE">SOE</option>
               <option value="RCC/MMDA">RCC/MMDA</option>
             </select>
           </div>
 
-          {institutionType === 'MDA' ? (
+          {(institutionType === 'MDA' || institutionType === 'SOE') ? (
             <div className={styles.inputGroup}>
               <label>Institution Name</label>
-              <input
-                type="text"
-                className={styles.inputField}
+              <select
+                className={styles.selectField}
                 value={institutionName}
                 onChange={(e) => setInstitutionName(e.target.value)}
                 required
-              />
+              >
+                <option value="">Select Institution</option>
+                {(institutionType === 'MDA' ? MDA_DATA : SOE_DATA).map(inst => (
+                  <option key={inst} value={inst}>{inst}</option>
+                ))}
+              </select>
             </div>
           ) : (
             <>

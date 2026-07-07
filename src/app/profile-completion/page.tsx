@@ -6,14 +6,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import styles from '../login/login.module.css';
+import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
+import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 
-const REGIONS = [
-  "Ahafo", "Ashanti", "Bono", "Bono East", "Central", "Eastern",
-  "Greater Accra", "North East", "Northern", "Oti", "Savannah",
-  "Upper East", "Upper West", "Volta", "Western", "Western North"
-];
-
-const INSTITUTION_TYPES = ["MDA", "RCC", "MMDA"];
+const INSTITUTION_TYPES = ["MDA", "MMDA", "RCC", "SOE"];
 
 export default function ProfileCompletionPage() {
   const [firstName, setFirstName] = useState('');
@@ -22,6 +18,7 @@ export default function ProfileCompletionPage() {
   const [institutionType, setInstitutionType] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [region, setRegion] = useState('');
+  const [mmda, setMmda] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +50,9 @@ export default function ProfileCompletionPage() {
     setLoading(true);
 
     try {
-      const institution = institutionType === 'MDA' ? institutionName : region;
+      const finalInstitution = (institutionType === 'MDA' || institutionType === 'SOE')
+        ? institutionName
+        : mmda;
 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -63,9 +62,9 @@ export default function ProfileCompletionPage() {
         email: user.email,
         phone: phone.trim(),
         institutionType,
-        institutionName: institutionType === 'MDA' ? institutionName.trim() : '',
-        region: institutionType !== 'MDA' ? region : '',
-        institution: institution.trim(), // For Android app compatibility
+        institutionName: (institutionType === 'MDA' || institutionType === 'SOE') ? institutionName.trim() : '',
+        region: (institutionType === 'RCC' || institutionType === 'MMDA') ? region : '',
+        institution: finalInstitution.trim(), // For Android app compatibility
         role: 'user', // Default role
         isProfileComplete: true,
         updatedAt: new Date().toISOString()
@@ -134,7 +133,12 @@ export default function ProfileCompletionPage() {
               id="institutionType"
               className={styles.inputField}
               value={institutionType}
-              onChange={(e) => setInstitutionType(e.target.value)}
+              onChange={(e) => {
+                setInstitutionType(e.target.value);
+                setInstitutionName('');
+                setRegion('');
+                setMmda('');
+              }}
               required
             >
               <option value="">Select Type</option>
@@ -142,35 +146,62 @@ export default function ProfileCompletionPage() {
             </select>
           </div>
 
-          {institutionType === 'MDA' && (
+          {(institutionType === 'MDA' || institutionType === 'SOE') && (
             <div className={styles.inputGroup}>
-              <label htmlFor="institutionName">MDA Name</label>
-              <input
-                type="text"
+              <label htmlFor="institutionName">Institution Name ({institutionType})</label>
+              <select
                 id="institutionName"
                 className={styles.inputField}
                 value={institutionName}
                 onChange={(e) => setInstitutionName(e.target.value)}
-                placeholder="Name of Ministry/Dept/Agency"
                 required
-              />
+              >
+                <option value="">Select Institution</option>
+                {(institutionType === 'MDA' ? MDA_DATA : SOE_DATA).map(inst => (
+                  <option key={inst} value={inst}>{inst}</option>
+                ))}
+              </select>
             </div>
           )}
 
           {(institutionType === 'RCC' || institutionType === 'MMDA') && (
-            <div className={styles.inputGroup}>
-              <label htmlFor="region">Region</label>
-              <select
-                id="region"
-                className={styles.inputField}
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                required
-              >
-                <option value="">Select Region</option>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
+            <>
+              <div className={styles.inputGroup}>
+                <label htmlFor="region">Region</label>
+                <select
+                  id="region"
+                  className={styles.inputField}
+                  value={region}
+                  onChange={(e) => {
+                    setRegion(e.target.value);
+                    setMmda('');
+                  }}
+                  required
+                >
+                  <option value="">Select Region</option>
+                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              {region && (
+                <div className={styles.inputGroup}>
+                  <label htmlFor="mmda">Specific Institution ({institutionType})</label>
+                  <select
+                    id="mmda"
+                    className={styles.inputField}
+                    value={mmda}
+                    onChange={(e) => setMmda(e.target.value)}
+                    required
+                  >
+                    <option value="">Select Institution</option>
+                    {MMDA_DATA[region]
+                      ?.filter(m => institutionType === 'MMDA' ? !m.endsWith(' RCC') : m.endsWith(' RCC'))
+                      .map(m => <option key={m} value={m}>{m}</option>)
+                    }
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           <button type="submit" className={styles.submitButton} disabled={loading}>

@@ -703,8 +703,8 @@ function RecipientEmailsTab({
           options={CATEGORY_OPTIONS.map((item) => ({ value: item.id, label: item.label }))}
           onChange={(value) => setSelectedCategory(value as CategoryId)}
         />
-        <Input label="MDA Report Recipient Emails" value={config.mda_to.join(', ')} onChange={(value) => updateConfig({ ...config, mda_to: splitEmails(value) })} />
-        <Input label="MDA Report CC Recipients" value={config.mda_cc.join(', ')} onChange={(value) => updateConfig({ ...config, mda_cc: splitEmails(value) })} />
+        <Input label="MDA/SOE Report Recipient Emails" value={config.mda_to.join(', ')} onChange={(value) => updateConfig({ ...config, mda_to: splitEmails(value) })} />
+        <Input label="MDA/SOE Report CC Recipients" value={config.mda_cc.join(', ')} onChange={(value) => updateConfig({ ...config, mda_cc: splitEmails(value) })} />
         <Input label="MMDA Report Recipient Emails" value={config.mmda_to.join(', ')} onChange={(value) => updateConfig({ ...config, mmda_to: splitEmails(value) })} />
 
         <div className={styles.divider} />

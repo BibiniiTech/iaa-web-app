@@ -6,6 +6,8 @@ import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import styles from './profile.module.css';
+import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
+import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 
 type UserProfile = {
   uid: string;
@@ -14,6 +16,8 @@ type UserProfile = {
   surname: string;
   phone: string;
   institution: string;
+  institutionType?: string;
+  region?: string;
 };
 
 export default function ProfilePage() {
@@ -27,6 +31,8 @@ export default function ProfilePage() {
   const [surname, setSurname] = useState('');
   const [phone, setPhone] = useState('');
   const [institution, setInstitution] = useState('');
+  const [institutionType, setInstitutionType] = useState('');
+  const [region, setRegion] = useState('');
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -48,12 +54,16 @@ export default function ProfilePage() {
             surname: data.surname || '',
             phone: data.phone || data.phoneNumber || '',
             institution: data.institution || '',
+            institutionType: data.institutionType || '',
+            region: data.region || '',
           };
           setProfile(p);
           setFirstName(p.firstName);
           setSurname(p.surname);
           setPhone(p.phone);
           setInstitution(p.institution);
+          setInstitutionType(p.institutionType || '');
+          setRegion(p.region || '');
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -77,6 +87,8 @@ export default function ProfilePage() {
         surname: surname.trim(),
         phone: phone.trim(),
         institution: institution.trim(),
+        institutionType: institutionType,
+        region: region,
       });
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (error) {
@@ -172,19 +184,83 @@ export default function ProfilePage() {
             </div>
 
             <div className={styles.formGroup}>
-              <label>Institution</label>
+              <label>Institution Type</label>
               <div className={styles.inputWrapper}>
-                <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
-                </svg>
-                <input
+                <select
                   className={styles.input}
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                  placeholder="Institution"
-                />
+                  value={institutionType}
+                  onChange={(e) => {
+                    setInstitutionType(e.target.value);
+                    setInstitution('');
+                    setRegion('');
+                  }}
+                >
+                  <option value="">Select Type</option>
+                  <option value="MDA">MDA</option>
+                  <option value="SOE">SOE</option>
+                  <option value="RCC">RCC</option>
+                  <option value="MMDA">MMDA</option>
+                </select>
               </div>
             </div>
+
+            {(institutionType === 'MDA' || institutionType === 'SOE') && (
+              <div className={styles.formGroup}>
+                <label>Institution Name</label>
+                <div className={styles.inputWrapper}>
+                  <select
+                    className={styles.input}
+                    value={institution}
+                    onChange={(e) => setInstitution(e.target.value)}
+                  >
+                    <option value="">Select Institution</option>
+                    {(institutionType === 'MDA' ? MDA_DATA : SOE_DATA).map(inst => (
+                      <option key={inst} value={inst}>{inst}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {(institutionType === 'RCC' || institutionType === 'MMDA') && (
+              <>
+                <div className={styles.formGroup}>
+                  <label>Region</label>
+                  <div className={styles.inputWrapper}>
+                    <select
+                      className={styles.input}
+                      value={region}
+                      onChange={(e) => {
+                        setRegion(e.target.value);
+                        setInstitution('');
+                      }}
+                    >
+                      <option value="">Select Region</option>
+                      {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {region && (
+                  <div className={styles.formGroup}>
+                    <label>Specific Institution</label>
+                    <div className={styles.inputWrapper}>
+                      <select
+                        className={styles.input}
+                        value={institution}
+                        onChange={(e) => setInstitution(e.target.value)}
+                      >
+                        <option value="">Select Institution</option>
+                        {MMDA_DATA[region]
+                          ?.filter(m => institutionType === 'MMDA' ? !m.endsWith(' RCC') : m.endsWith(' RCC'))
+                          .map(m => <option key={m} value={m}>{m}</option>)
+                        }
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <button className={styles.saveButton} type="submit" disabled={isSaving}>
             {isSaving ? 'Saving...' : 'Save Changes'}
