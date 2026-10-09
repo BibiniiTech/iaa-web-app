@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -96,12 +96,7 @@ type VotingCategory = {
   name: string;
   options: VotingOption[];
   allowMultiple: boolean;
-};
-
-type VotingConfig = {
-  visible: boolean;
-  header: string;
-  categories: VotingCategory[];
+  allowedVoterEmails?: string[];
 };
 
 type Submission = {
@@ -236,7 +231,7 @@ function emptyInstitutionCc(): Record<string, Record<string, string[]>> {
   );
 }
 
-function defaultCloudConfig(category: CategoryId): CloudConfig {
+function defaultCloudConfig(): CloudConfig {
   return {
     mda_to: ['clemzy93@gmail.com'],
     mda_cc: [],
@@ -248,11 +243,11 @@ function defaultCloudConfig(category: CategoryId): CloudConfig {
 
 function defaultRecipientMap(): Record<CategoryId, CloudConfig> {
   return {
-    quarterly: defaultCloudConfig('quarterly'),
-    annual: defaultCloudConfig('annual'),
-    ccc: defaultCloudConfig('ccc'),
-    soi: defaultCloudConfig('soi'),
-    other: defaultCloudConfig('other'),
+    quarterly: defaultCloudConfig(),
+    annual: defaultCloudConfig(),
+    ccc: defaultCloudConfig(),
+    soi: defaultCloudConfig(),
+    other: defaultCloudConfig(),
   };
 }
 
@@ -1169,6 +1164,49 @@ function VotingCategoryEditor({
   onChange: (cat: VotingCategory) => void;
   onDelete: () => void;
 }) {
+  const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [rawEmails, setRawEmails] = useState((category.allowedVoterEmails || []).join('\n'));
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const matches = text.match(emailRegex) || [];
+      const uniqueEmails = Array.from(new Set(matches.map(m => m.trim().toLowerCase())));
+      if (uniqueEmails.length === 0) {
+        alert('No valid email addresses found in the uploaded CSV file.');
+        return;
+      }
+      onChange({
+        ...category,
+        allowedVoterEmails: uniqueEmails
+      });
+      setRawEmails(uniqueEmails.join('\n'));
+      alert(`Successfully loaded ${uniqueEmails.length} voter email address(es) for this section.`);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSaveManualEmails = () => {
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const matches = rawEmails.match(emailRegex) || [];
+    const uniqueEmails = Array.from(new Set(matches.map(m => m.trim().toLowerCase())));
+    onChange({
+      ...category,
+      allowedVoterEmails: uniqueEmails
+    });
+    setRawEmails(uniqueEmails.join('\n'));
+    setShowEmailEditor(false);
+  };
+
+  const hasRestrictions = Boolean(category.allowedVoterEmails && category.allowedVoterEmails.length > 0);
+
   return (
     <div className={styles.card} style={{ margin: '10px 0', border: '1px solid #ddd' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -1209,6 +1247,131 @@ function VotingCategoryEditor({
 
       <div className={styles.divider} />
       <Toggle label="Allow Multiple Selection" checked={category.allowMultiple} onChange={(val) => onChange({ ...category, allowMultiple: val })} />
+
+      <div className={styles.divider} />
+
+      {/* Voter Access Control Section */}
+      <div style={{
+        background: '#f8f9fa',
+        padding: '12px',
+        borderRadius: '8px',
+        border: '1px solid #e0e0e0',
+        display: 'grid',
+        gap: '8px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.1rem' }}>{hasRestrictions ? '🔒' : '🌐'}</span>
+            <strong style={{ fontSize: '0.9rem' }}>Voter Access Control (Allowed Voters)</strong>
+          </div>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '3px 10px',
+            borderRadius: '12px',
+            fontWeight: 600,
+            background: hasRestrictions ? '#e3f2fd' : '#e8f5e9',
+            color: hasRestrictions ? '#1976d2' : '#2e7d32'
+          }}>
+            {hasRestrictions
+              ? `Restricted: ${category.allowedVoterEmails?.length} emails`
+              : 'Open to All Registered Voters'}
+          </span>
+        </div>
+
+        <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
+          {hasRestrictions
+            ? 'Only accounts matching these email addresses will see and be permitted to cast votes in this section.'
+            : 'All registered users can vote in this section. Upload a CSV to restrict participation to specific emails (e.g. regional executives).'}
+        </p>
+
+        <input
+          type="file"
+          accept=".csv,text/csv,text/plain"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleCsvUpload}
+        />
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+          <button
+            type="button"
+            className={styles.addBtn}
+            style={{ fontSize: '0.8rem', padding: '6px 12px', margin: 0 }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            📁 {hasRestrictions ? 'Replace Voters CSV' : 'Upload Voters CSV'}
+          </button>
+
+          {hasRestrictions && (
+            <>
+              <button
+                type="button"
+                className={styles.addBtn}
+                style={{ fontSize: '0.8rem', padding: '6px 12px', margin: 0, background: '#f5f5f5', color: '#333' }}
+                onClick={() => {
+                  setRawEmails((category.allowedVoterEmails || []).join('\n'));
+                  setShowEmailEditor(!showEmailEditor);
+                }}
+              >
+                ✏️ {showEmailEditor ? 'Close Editor' : `View / Edit (${category.allowedVoterEmails?.length})`}
+              </button>
+
+              <button
+                type="button"
+                className={styles.removeBtn}
+                style={{ fontSize: '0.8rem', padding: '6px 12px', margin: 0 }}
+                onClick={() => {
+                  onChange({ ...category, allowedVoterEmails: [] });
+                  setRawEmails('');
+                  setShowEmailEditor(false);
+                }}
+              >
+                ✕ Clear Restriction (Open to All)
+              </button>
+            </>
+          )}
+        </div>
+
+        {showEmailEditor && (
+          <div style={{ marginTop: '8px', display: 'grid', gap: '8px' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              Edit Allowed Emails (one per line, or separated by commas):
+            </label>
+            <textarea
+              value={rawEmails}
+              onChange={(e) => setRawEmails(e.target.value)}
+              placeholder="e.g.&#10;user1@iaa.gov.gh&#10;user2@iaa.gov.gh"
+              rows={5}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className={styles.saveButton}
+                style={{ padding: '6px 16px', fontSize: '0.8rem', width: 'auto' }}
+                onClick={handleSaveManualEmails}
+              >
+                Apply Changes
+              </button>
+              <button
+                type="button"
+                className={styles.removeBtn}
+                style={{ padding: '6px 16px', fontSize: '0.8rem', width: 'auto' }}
+                onClick={() => setShowEmailEditor(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1244,6 +1407,7 @@ function VotingOptionEditor({
     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
       <div style={{ width: '60px', height: '60px', background: '#eee', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
         {option.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={option.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '0.8rem' }}>No Img</div>
@@ -1382,7 +1546,6 @@ function SubmissionsMonitorCard({
 
 function SubmissionItem({ submission }: { submission: Submission }) {
   const [expanded, setExpanded] = useState(false);
-  const files = submission.files?.length ? submission.files.map((file) => file.name) : submission.fileNames;
 
   return (
     <div className={`${styles.submissionItem} ${getSubmissionClass(submission)}`}>

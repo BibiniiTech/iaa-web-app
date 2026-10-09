@@ -25,25 +25,25 @@ const calculateGhanaPaye = (taxableIncome: number): number => {
   remaining -= b3;
   if (remaining <= 0) return tax;
 
-  // Bracket 4: Next 3,170 @ 17.5%
-  const b4 = Math.min(remaining, 3170.0);
+  // Bracket 4: Next 3,166.67 @ 17.5%
+  const b4 = Math.min(remaining, 3166.67);
   tax += b4 * 0.175;
   remaining -= b4;
   if (remaining <= 0) return tax;
 
-  // Bracket 5: Next 11,100 @ 25%
-  const b5 = Math.min(remaining, 11100.0);
+  // Bracket 5: Next 16,000 @ 25%
+  const b5 = Math.min(remaining, 16000.0);
   tax += b5 * 0.25;
   remaining -= b5;
   if (remaining <= 0) return tax;
 
-  // Bracket 6: Next 20,000 @ 30%
-  const b6 = Math.min(remaining, 20000.0);
+  // Bracket 6: Next 30,500 @ 30%
+  const b6 = Math.min(remaining, 30500.0);
   tax += b6 * 0.30;
   remaining -= b6;
   if (remaining <= 0) return tax;
 
-  // Bracket 7: Exceeding 35,000 @ 35%
+  // Bracket 7: Exceeding 50,396.67 @ 35%
   tax += remaining * 0.35;
 
   return tax;

@@ -14,8 +14,6 @@ const firebaseConfig = {
 };
 
 // Next.js build-time fallback to prevent "auth/invalid-api-key" error
-const isBuildTime = typeof window === "undefined" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-
 const app = getApps().length > 0
   ? getApp()
   : initializeApp({

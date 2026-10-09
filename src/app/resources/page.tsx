@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import React, { useState, useEffect, Suspense } from 'react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSearchParams } from 'next/navigation';
 import styles from './resources.module.css';
@@ -12,11 +12,6 @@ interface DbDocument {
   category: string;
   downloadUrl: string;
   timestamp: number;
-}
-
-interface ChecklistItem {
-  text: string;
-  checked: boolean;
 }
 
 export default function ResourcesPage() {
@@ -106,19 +101,20 @@ function ResourcesPageContent() {
     let clean = name.replace(/\.(pdf|docx?|xlsx?|pptx?|txt|zip)$/i, '');
     clean = clean.replace(/[_-]/g, ' ');
     const acronyms = ['PFM', 'IAA', 'LGA', 'PPA', 'CCC', 'NACAP', 'LI', 'ACT'];
+    const smallWords = ['and', 'of', 'for', 'the', 'in', 'on', 'with'];
 
     return clean.split(' ').map(word => {
       const upper = word.toUpperCase();
       if (acronyms.includes(upper)) return upper;
-      const smallWords = ['and', 'of', 'for', 'the', 'in', 'on', 'with'];
       if (smallWords.includes(word.toLowerCase())) return word.toLowerCase();
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     }).join(' ');
   };
 
+  const [oneWeekAgo] = useState(() => (typeof window !== 'undefined' ? Date.now() - 7 * 24 * 60 * 60 * 1000 : 0));
+
   const isNew = (timestamp: number) => {
-    const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    return timestamp > weekAgo;
+    return oneWeekAgo > 0 && timestamp > oneWeekAgo;
   };
 
   const toggleCategory = (category: string) => {
@@ -193,6 +189,20 @@ function ResourcesPageContent() {
       emptyText: 'No additional resources available.'
     }
   ];
+
+  if (loading) {
+    return (
+      <div className={styles.pageContainer}>
+        <header className={styles.header}>
+          <h1>Resources Portal</h1>
+          <p>Access laws, guidelines, and templates to support your internal audit functions.</p>
+        </header>
+        <p className={styles.emptyText} style={{ textAlign: 'center', padding: '2rem' }}>
+          Loading Resources...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.pageContainer}>

@@ -153,6 +153,16 @@ const DEFAULT_HEADING = 'PFM Compliance League Table';
 const DEFAULT_DESCRIPTION =
   'The Public Financial Management (PFM) Compliance League Table is a landmark transparency and accountability initiative aimed at strengthening fiscal discipline and improving the management of public resources. This fulfills the Government’s commitment in the 2025 Budget Statement to publish an objective, evidence-based assessment of how public institutions comply with the PFM Act, 2016 (Act 921), its Regulations and associated laws. The League Table serves as a performance benchmarking tool that measures the extent to which public institutions adhere to the rules and procedures governing the use of public funds.';
 
+function parsePfmJson(jsonStr: string, fallback: PFMSection[]): PFMSection[] {
+  try {
+    if (!jsonStr.trim()) return fallback;
+    const parsed = JSON.parse(jsonStr);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────
 export default function PFMLeaguePage() {
   const [heading, setHeading] = useState(DEFAULT_HEADING);
@@ -232,16 +242,6 @@ export default function PFMLeaguePage() {
 
     initPfmData();
   }, []);
-
-  function parsePfmJson(jsonStr: string, fallback: PFMSection[]): PFMSection[] {
-    try {
-      if (!jsonStr.trim()) return fallback;
-      const parsed = JSON.parse(jsonStr);
-      return Array.isArray(parsed) ? parsed : fallback;
-    } catch {
-      return fallback;
-    }
-  }
 
   if (loading) {
     return <div className={styles.loading}>Loading PFM League Table...</div>;

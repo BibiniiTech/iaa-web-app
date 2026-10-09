@@ -32,7 +32,7 @@ export default function LoginPage() {
       if (pathname === '/login') {
         router.push('/');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Authentication failed. Please verify credentials.');
       console.error(err);
     } finally {
@@ -50,8 +50,9 @@ export default function LoginPage() {
       if (pathname === '/login') {
         router.push('/');
       }
-    } catch (err: any) {
-      setError(err.message || 'Google sign in failed');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Google sign in failed';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ export default function LoginPage() {
     try {
       await sendPasswordResetEmail(auth, email.trim());
       setMessage('Reset link sent to your email.');
-    } catch (err: any) {
+    } catch {
       setError('Failed to send reset link. Verify your email.');
     }
   };
@@ -157,6 +158,7 @@ export default function LoginPage() {
           </form>
 
           <button className={styles.googleButton} onClick={handleGoogleLogin} disabled={loading}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="20" />
             <span>Continue with Google</span>
           </button>

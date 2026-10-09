@@ -13,23 +13,29 @@ service cloud.firestore {
         get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
-    // Votes - Allow public read for results
+    // Votes - Only voter themselves or admin can read their own vote; only admin can list
     match /votes/{voteId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (request.auth.uid == voteId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.auth.uid == voteId;
       allow update, delete: if isAdmin();
     }
 
-    // Config collection - Allow public read for app configuration
+    // Config collection - Allow public read for app configuration; allow signed-in users to update voting results
     match /config/{document} {
       allow get, list: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || (document == 'voting_results' && isSignedIn());
     }
 
-    // User profiles
+    // User profiles - prevent self-escalation of roles to admin
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if request.auth.uid == userId || isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+                    (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      allow update: if (isSignedIn() && request.auth.uid == userId &&
+                    (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)) ||
+                    isAdmin();
+      allow delete: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
     }
 
     // Portal documents
@@ -38,10 +44,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Submissions
+    // Submissions - ensure submitter stores their userId and can read back their submission
     match /submissions/{subId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 

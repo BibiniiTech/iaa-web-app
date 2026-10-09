@@ -21,7 +21,7 @@ export default function Disclaimer({ onAccept }: DisclaimerProps) {
             <section className={styles.section}>
               <h3 className={styles.sectionTitle}>WEBSITE DISCLAIMER</h3>
               <p>
-                The information provided by the Internal Audit Agency ("we", "us", or "our") on this
+                The information provided by the Internal Audit Agency (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) on this
                 application is for general informational purposes only. All information on the
                 application is provided in good faith, however we make no representation or warranty of
                 any kind, express or implied, regarding the accuracy, adequacy, validity, reliability,

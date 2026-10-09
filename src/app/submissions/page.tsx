@@ -352,10 +352,14 @@ export default function SubmissionsPage() {
         reportName: reportName,
       });
 
-      // 5. Send using the same Brevo setup (via api endpoint)
+      // 5. Send using the same Brevo setup (via api endpoint) with auth token
+      const idToken = await user.getIdToken();
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           to: uniqueTo.map((email: string) => ({ email })),
           cc: uniqueCc.length > 0 ? uniqueCc.map((email: string) => ({ email })) : undefined,

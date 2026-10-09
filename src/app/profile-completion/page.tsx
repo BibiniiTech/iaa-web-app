@@ -67,12 +67,14 @@ export default function ProfileCompletionPage() {
         institution: finalInstitution.trim(), // For Android app compatibility
         role: 'user', // Default role
         isProfileComplete: true,
+        profileComplete: true, // For Android app compatibility
         updatedAt: new Date().toISOString()
       });
 
       router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Failed to save profile');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save profile';
+      setError(message);
     } finally {
       setLoading(false);
     }

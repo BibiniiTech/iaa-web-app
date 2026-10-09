@@ -5,10 +5,9 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
-  query,
-  where,
-  addDoc,
+  setDoc,
+  writeBatch,
+  increment,
   serverTimestamp,
   onSnapshot
 } from 'firebase/firestore';
@@ -27,6 +26,7 @@ type VotingCategory = {
   name: string;
   options: VotingOption[];
   allowMultiple: boolean;
+  allowedVoterEmails?: string[];
 };
 
 type VotingConfig = {
@@ -45,7 +45,7 @@ type VoteRecord = {
   institution: string;
   region: string;
   selections: Record<string, string[]>;
-  timestamp: any;
+  timestamp: unknown;
 };
 
 type UserProfile = {
@@ -63,7 +63,7 @@ export default function VotingPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null | undefined>(undefined);
   const [hasVoted, setHasVoted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [allVotes, setAllVotes] = useState<VoteRecord[]>([]);
+  const [votingResults, setVotingResults] = useState<{ categoryTotals: Record<string, number>; optionCounts: Record<string, number> }>({ categoryTotals: {}, optionCounts: {} });
 
   const [currentStep, setCurrentStep] = useState(0);
   const [userSelections, setUserSelections] = useState<Record<string, string[]>>({}); // categoryId -> list of optionIds
@@ -92,15 +92,11 @@ export default function VotingPage() {
   }, []);
 
   useEffect(() => {
-    let unsubscribeVotes: () => void = () => {};
+    let unsubscribeResults: () => void = () => {};
 
     async function loadConfigAndVotes() {
-      const currentUser = auth.currentUser;
-      console.log("loadConfigAndVotes started. Profile UID:", userProfile?.uid, "Auth UID:", currentUser?.uid);
-
       try {
         // 1. Load Config
-        console.log("Fetching config from 'config/voting_config'...");
         const configSnap = await getDoc(doc(db, 'config', 'voting_config'));
         if (configSnap.exists()) {
           const data = configSnap.data();
@@ -109,42 +105,36 @@ export default function VotingPage() {
             header: data.header || '',
             categories: data.categories || []
           } as VotingConfig);
-          console.log("Config loaded successfully");
-        } else {
-          console.warn("Voting config document not found at 'config/voting_config'");
         }
 
-        // 2. Setup real-time listener for votes
-        console.log("Setting up votes collection listener...");
-        unsubscribeVotes = onSnapshot(collection(db, 'votes'), (snapshot) => {
-          console.log("Votes snapshot received. Size:", snapshot.size);
-          const votesMap = new Map<string, VoteRecord>();
+        // 2. Check if user already voted (single document read)
+        if (userProfile?.uid) {
+          const voteSnap = await getDoc(doc(db, 'votes', userProfile.uid));
+          if (voteSnap.exists()) {
+            setHasVoted(true);
+          }
+        }
 
-          snapshot.docs.forEach(d => {
-            const data = d.data() as VoteRecord;
-            // Use userId as unique key to prevent duplicates
-            if (data.userId) {
-              votesMap.set(data.userId, data);
-            } else {
-              // Fallback for any legacy data without userId
-              votesMap.set(d.id, data);
-            }
-          });
-
-          const votes = Array.from(votesMap.values());
-          console.log("Unique votes processed:", votes.length);
-          setAllVotes(votes);
-
-          if (userProfile) {
-            const hasVoted = votes.some(v => v.userId === userProfile.uid);
-            setHasVoted(hasVoted);
+        // 3. Setup real-time listener for aggregated voting results (single document read)
+        unsubscribeResults = onSnapshot(doc(db, 'config', 'voting_results'), (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            const catTotals: Record<string, number> = {};
+            const optCounts: Record<string, number> = {};
+            Object.entries(data).forEach(([key, val]) => {
+              const num = Number(val) || 0;
+              if (key.startsWith('cat_')) catTotals[key.replace('cat_', '')] = num;
+              if (key.startsWith('opt_')) optCounts[key.replace('opt_', '')] = num;
+            });
+            setVotingResults({ categoryTotals: catTotals, optionCounts: optCounts });
           }
         }, (error) => {
-          console.error("Error in onSnapshot listener for 'votes':", error.code, error.message);
+          console.error("Error in onSnapshot listener for 'voting_results':", error.code, error.message);
         });
 
-      } catch (error: any) {
-        console.error("General error in loadConfigAndVotes:", error.code, error.message);
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string };
+        console.error("General error in loadConfigAndVotes:", err.code, err.message);
       } finally {
         setIsLoading(false);
       }
@@ -154,11 +144,12 @@ export default function VotingPage() {
       if (userProfile) {
         loadConfigAndVotes();
       } else {
-        setIsLoading(false);
+        const timer = setTimeout(() => setIsLoading(false), 0);
+        return () => clearTimeout(timer);
       }
     }
 
-    return () => unsubscribeVotes();
+    return () => unsubscribeResults();
   }, [userProfile]);
 
   const handleSelectionChange = (categoryId: string, selectedOptions: string[]) => {
@@ -168,21 +159,37 @@ export default function VotingPage() {
     }));
   };
 
+  const userEmail = (userProfile?.email || auth.currentUser?.email || '').trim().toLowerCase();
+
+  const eligibleCategories = (config?.categories || []).filter(cat => {
+    if (!cat.allowedVoterEmails || cat.allowedVoterEmails.length === 0) {
+      return true;
+    }
+    return cat.allowedVoterEmails.some(e => e.trim().toLowerCase() === userEmail);
+  });
+
   const handleSubmit = async () => {
     if (!userProfile || !config) return;
 
-    // Check if all categories have at least one selection
-    const allSelected = config.categories.every(cat =>
+    // Check if all eligible categories have at least one selection
+    const allSelected = eligibleCategories.every(cat =>
       userSelections[cat.id] && userSelections[cat.id].length > 0
     );
 
     if (!allSelected) {
-      alert("Please make a selection for all categories.");
+      alert("Please make a selection for all available categories.");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const cleanedSelections: Record<string, string[]> = {};
+      eligibleCategories.forEach(cat => {
+        if (userSelections[cat.id]) {
+          cleanedSelections[cat.id] = userSelections[cat.id];
+        }
+      });
+
       const vote: VoteRecord = {
         userId: userProfile.uid,
         firstName: userProfile.firstName || '',
@@ -192,11 +199,26 @@ export default function VotingPage() {
         institutionType: userProfile.institution || '',
         institution: userProfile.institution || '',
         region: '', // Added as per Android model
-        selections: userSelections,
+        selections: cleanedSelections,
         timestamp: serverTimestamp()
       };
       
-      await addDoc(collection(db, 'votes'), vote);
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'votes', userProfile.uid), vote);
+
+      const updates: Record<string, unknown> = {};
+      Object.entries(cleanedSelections).forEach(([categoryId, optionIds]) => {
+        if (optionIds && optionIds.length > 0) {
+          updates[`cat_${categoryId}`] = increment(1);
+          optionIds.forEach(optId => {
+            updates[`opt_${optId}`] = increment(1);
+          });
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        batch.set(doc(db, 'config', 'voting_results'), updates, { merge: true });
+      }
+      await batch.commit();
       setHasVoted(true);
     } catch (error) {
       console.error("Error submitting vote:", error);
@@ -226,11 +248,39 @@ export default function VotingPage() {
     );
   }
 
-  if (hasVoted) {
-    return <VotingSuccessView config={config} allVotes={allVotes} />;
+  if (config.categories.length > 0 && eligibleCategories.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.card} style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+          <h2 style={{ color: 'var(--primary)', fontWeight: '800', marginBottom: '12px' }}>
+            Voting Restricted
+          </h2>
+          <p style={{ color: '#555', marginBottom: '16px', lineHeight: '1.5' }}>
+            {userEmail
+              ? `Your account (${userEmail}) is not authorized to vote in any active poll sections.`
+              : 'Your account is not authorized to vote in any active poll sections.'}
+          </p>
+          <p style={{ color: '#888', fontSize: '0.85rem', marginBottom: '24px' }}>
+            If you believe this is in error, please contact your administrator.
+          </p>
+          <button
+            className={styles.submitButton}
+            style={{ maxWidth: '240px', margin: '0 auto', background: '#666' }}
+            onClick={() => window.location.href = '/'}
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  const categories = config.categories;
+  if (hasVoted) {
+    return <VotingSuccessView config={config} votingResults={votingResults} />;
+  }
+
+  const categories = eligibleCategories;
   const totalSteps = categories.length + 1; // +1 for summary card
 
   return (
@@ -243,6 +293,22 @@ export default function VotingPage() {
         <h2 style={{ color: 'var(--primary)', textAlign: 'center', fontWeight: '800' }}>
           {config.header}
         </h2>
+
+        {eligibleCategories.length < config.categories.length && (
+          <div style={{
+            background: 'rgba(27, 54, 93, 0.08)',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            color: 'var(--primary)',
+            textAlign: 'center',
+            margin: '8px auto 0 auto',
+            maxWidth: '500px',
+            fontWeight: 500
+          }}>
+            Showing {eligibleCategories.length} of {config.categories.length} section(s) available for your account.
+          </div>
+        )}
 
         <div style={{ margin: '20px 0' }}>
           <div style={{
@@ -264,7 +330,7 @@ export default function VotingPage() {
         {currentStep < categories.length ? (
           <CategoryVotingCard
             category={categories[currentStep]}
-            allVotes={allVotes}
+            votingResults={votingResults}
             selectedOptions={userSelections[categories[currentStep].id] || []}
             onSelectionChange={(opts) => handleSelectionChange(categories[currentStep].id, opts)}
           />
@@ -303,18 +369,18 @@ export default function VotingPage() {
 
 function CategoryVotingCard({
   category,
-  allVotes,
+  votingResults,
   selectedOptions,
   onSelectionChange
 }: {
   category: VotingCategory;
-  allVotes: VoteRecord[];
+  votingResults: { categoryTotals: Record<string, number>; optionCounts: Record<string, number> };
   selectedOptions: string[];
   onSelectionChange: (opts: string[]) => void;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <ResultsSummaryCard category={category} allVotes={allVotes} />
+      <ResultsSummaryCard category={category} votingResults={votingResults} />
 
       <h2 className={styles.categoryHeading} style={{ textAlign: 'center', marginBottom: '0' }}>
         {category.name}
@@ -342,6 +408,7 @@ function CategoryVotingCard({
                 }
               }}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={option.imageUrl} alt={option.text} className={styles.optionImage} />
               <div style={{ position: 'relative' }}>
                 <span className={styles.optionText}>{option.text}</span>
@@ -365,26 +432,13 @@ function CategoryVotingCard({
 
 function ResultsSummaryCard({
   category,
-  allVotes
+  votingResults
 }: {
   category: VotingCategory;
-  allVotes: VoteRecord[];
+  votingResults: { categoryTotals: Record<string, number>; optionCounts: Record<string, number> };
 }) {
-  // Stats Calculation
-  const totalCategoryVotes = allVotes.filter(v =>
-    v.selections &&
-    v.selections[category.id] &&
-    v.selections[category.id].length > 0
-  ).length;
-
-  const optionCounts = category.options.reduce((acc, option) => {
-    acc[option.id] = allVotes.filter(v =>
-      v.selections &&
-      v.selections[category.id] &&
-      v.selections[category.id].includes(option.id)
-    ).length;
-    return acc;
-  }, {} as Record<string, number>);
+  const totalCategoryVotes = votingResults.categoryTotals[category.id] || 0;
+  const optionCounts = votingResults.optionCounts;
 
   return (
     <div style={{
@@ -472,10 +526,10 @@ function VotingSummaryCard({
 
 function VotingSuccessView({
   config,
-  allVotes
+  votingResults
 }: {
   config: VotingConfig | null;
-  allVotes: VoteRecord[];
+  votingResults: { categoryTotals: Record<string, number>; optionCounts: Record<string, number> };
 }) {
   return (
     <div className={styles.container}>
@@ -491,7 +545,7 @@ function VotingSuccessView({
             <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '5px', marginBottom: '15px' }}>
               {category.name}
             </h4>
-            <ResultsSummaryCard category={category} allVotes={allVotes} />
+            <ResultsSummaryCard category={category} votingResults={votingResults} />
           </div>
         ))}
 

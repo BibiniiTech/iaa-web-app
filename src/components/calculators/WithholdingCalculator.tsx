@@ -1,16 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './Calculators.module.css';
 
 const TAX_RATES = {
   'Goods (3%)': 0.03,
   'Works (5%)': 0.05,
   'Services (7.5%)': 0.075,
-};
+  'Rent - Residential (8%)': 0.08,
+  'Rent - Commercial (15%)': 0.15,
+  'Directors Fees (20%)': 0.20,
+} as const;
+
+type TaxCategory = keyof typeof TAX_RATES;
 
 export default function WithholdingCalculator() {
-  const [category, setCategory] = useState<keyof typeof TAX_RATES>('Goods (3%)');
+  const [category, setCategory] = useState<TaxCategory>('Goods (3%)');
   const [grossInput, setGrossInput] = useState('');
   const [netInput, setNetInput] = useState('');
   const [isUpdatingFromGross, setIsUpdatingFromGross] = useState(true);
@@ -27,15 +32,17 @@ export default function WithholdingCalculator() {
 
   const taxVal = grossVal * taxRate;
 
-  useEffect(() => {
+  const handleCategoryChange = (newCategory: TaxCategory) => {
+    setCategory(newCategory);
+    const newRate = TAX_RATES[newCategory];
     if (isUpdatingFromGross) {
       const g = parseFloat(grossInput) || 0;
-      setNetInput(g > 0 ? (g * (1 - taxRate)).toFixed(2) : '');
+      setNetInput(g > 0 ? (g * (1 - newRate)).toFixed(2) : '');
     } else {
       const n = parseFloat(netInput) || 0;
-      setGrossInput(n > 0 ? (n / (1 - taxRate)).toFixed(2) : '');
+      setGrossInput(n > 0 ? (n / (1 - newRate)).toFixed(2) : '');
     }
-  }, [category, taxRate]);
+  };
 
   const handleGrossChange = (val: string) => {
     setIsUpdatingFromGross(true);
@@ -61,9 +68,14 @@ export default function WithholdingCalculator() {
       <div className={styles.inputArea}>
         <div className={styles.inputGroup}>
           <label>Transaction Type</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as any)}>
-            {Object.keys(TAX_RATES).map(rate => (
-              <option key={rate} value={rate}>{rate}</option>
+          <select
+            value={category}
+            onChange={(e) => handleCategoryChange(e.target.value as TaxCategory)}
+          >
+            {(Object.keys(TAX_RATES) as TaxCategory[]).map((rate) => (
+              <option key={rate} value={rate}>
+                {rate}
+              </option>
             ))}
           </select>
         </div>
@@ -72,7 +84,7 @@ export default function WithholdingCalculator() {
           <label>Gross Invoice Amount (GHS)</label>
           <input
             type="number"
-            value={isUpdatingFromGross ? grossInput : (grossVal > 0 ? grossVal.toFixed(2) : '')}
+            value={isUpdatingFromGross ? grossInput : grossVal > 0 ? grossVal.toFixed(2) : ''}
             onChange={(e) => handleGrossChange(e.target.value)}
             placeholder="0.00"
           />
@@ -82,7 +94,7 @@ export default function WithholdingCalculator() {
           <label>Net Pay Amount (GHS)</label>
           <input
             type="number"
-            value={!isUpdatingFromGross ? netInput : (netVal > 0 ? netVal.toFixed(2) : '')}
+            value={!isUpdatingFromGross ? netInput : netVal > 0 ? netVal.toFixed(2) : ''}
             onChange={(e) => handleNetChange(e.target.value)}
             placeholder="0.00"
           />
@@ -105,7 +117,14 @@ export default function WithholdingCalculator() {
         </div>
       </div>
 
-      <button className={styles.clearButton} onClick={() => { setGrossInput(''); setNetInput(''); setIsUpdatingFromGross(true); }}>
+      <button
+        className={styles.clearButton}
+        onClick={() => {
+          setGrossInput('');
+          setNetInput('');
+          setIsUpdatingFromGross(true);
+        }}
+      >
         Clear
       </button>
     </div>
