@@ -101,9 +101,26 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const to = normalizePeople(body.to);
-    const cc = normalizePeople(body.cc);
-    const bcc = normalizePeople(body.bcc);
+    const rawTo = normalizePeople(body.to);
+    const rawCc = normalizePeople(body.cc);
+    const rawBcc = normalizePeople(body.bcc);
+
+    const seenEmails = new Set<string>();
+    const to = rawTo.filter((p) => {
+      if (seenEmails.has(p.email)) return false;
+      seenEmails.add(p.email);
+      return true;
+    });
+    const cc = rawCc.filter((p) => {
+      if (seenEmails.has(p.email)) return false;
+      seenEmails.add(p.email);
+      return true;
+    });
+    const bcc = rawBcc.filter((p) => {
+      if (seenEmails.has(p.email)) return false;
+      seenEmails.add(p.email);
+      return true;
+    });
     const attachments = normalizeAttachments(body.attachments);
     const subject = String(body.subject || '').trim();
     const htmlContent = String(body.htmlContent || '').trim();

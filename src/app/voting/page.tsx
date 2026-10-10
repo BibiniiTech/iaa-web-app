@@ -2,14 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  collection,
   doc,
   getDoc,
-  setDoc,
   writeBatch,
   increment,
   serverTimestamp,
-  onSnapshot
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -91,9 +88,26 @@ export default function VotingPage() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    let unsubscribeResults: () => void = () => {};
+  const fetchVotingResults = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'config', 'voting_results'));
+      if (snap.exists()) {
+        const data = snap.data();
+        const catTotals: Record<string, number> = {};
+        const optCounts: Record<string, number> = {};
+        Object.entries(data).forEach(([key, val]) => {
+          const num = Number(val) || 0;
+          if (key.startsWith('cat_')) catTotals[key.replace('cat_', '')] = num;
+          if (key.startsWith('opt_')) optCounts[key.replace('opt_', '')] = num;
+        });
+        setVotingResults({ categoryTotals: catTotals, optionCounts: optCounts });
+      }
+    } catch (error) {
+      console.error("Error fetching 'voting_results':", error);
+    }
+  };
 
+  useEffect(() => {
     async function loadConfigAndVotes() {
       try {
         // 1. Load Config
@@ -115,22 +129,8 @@ export default function VotingPage() {
           }
         }
 
-        // 3. Setup real-time listener for aggregated voting results (single document read)
-        unsubscribeResults = onSnapshot(doc(db, 'config', 'voting_results'), (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            const catTotals: Record<string, number> = {};
-            const optCounts: Record<string, number> = {};
-            Object.entries(data).forEach(([key, val]) => {
-              const num = Number(val) || 0;
-              if (key.startsWith('cat_')) catTotals[key.replace('cat_', '')] = num;
-              if (key.startsWith('opt_')) optCounts[key.replace('opt_', '')] = num;
-            });
-            setVotingResults({ categoryTotals: catTotals, optionCounts: optCounts });
-          }
-        }, (error) => {
-          console.error("Error in onSnapshot listener for 'voting_results':", error.code, error.message);
-        });
+        // 3. One-shot read for aggregated voting results (avoids O(V^2) real-time listener storm)
+        await fetchVotingResults();
 
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string };
@@ -148,8 +148,6 @@ export default function VotingPage() {
         return () => clearTimeout(timer);
       }
     }
-
-    return () => unsubscribeResults();
   }, [userProfile]);
 
   const handleSelectionChange = (categoryId: string, selectedOptions: string[]) => {
@@ -219,6 +217,7 @@ export default function VotingPage() {
         batch.set(doc(db, 'config', 'voting_results'), updates, { merge: true });
       }
       await batch.commit();
+      await fetchVotingResults();
       setHasVoted(true);
     } catch (error) {
       console.error("Error submitting vote:", error);

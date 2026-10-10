@@ -273,15 +273,17 @@ export default function SubmissionsPage() {
         return;
       }
 
-      // 2. Upload Files to Firebase Storage
+      // 2. Automatically compress and upload files to Firebase Storage
+      const { compressFileForUpload } = await import('@/lib/compression');
       const uploadedFileUrls: { name: string, url: string, storagePath: string }[] = [];
       const timestamp = Date.now();
       for (const file of files) {
+        const compressedFile = await compressFileForUpload(file);
         const safeFileName = file.name.replace(/[\\/]/g, '_');
         const storageName = `${timestamp}_${safeFileName}`;
         const storagePath = `submissions/${user.uid}/${category}/${storageName}`;
         const fileRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(fileRef, file);
+        const snapshot = await uploadBytes(fileRef, compressedFile);
         const url = await getDownloadURL(snapshot.ref);
         uploadedFileUrls.push({ name: file.name, url, storagePath });
       }

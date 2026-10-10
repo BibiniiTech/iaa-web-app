@@ -9,12 +9,14 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   setDoc,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
+import { compressFileForUpload, compressVotingImage } from '@/lib/compression';
 import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
 import styles from './admin.module.css';
 
@@ -747,7 +749,7 @@ function PfmDocsTab({
   const [uploading, setUploading] = useState(false);
 
   const loadDocuments = useCallback(async () => {
-    const snap = await getDocs(query(collection(db, 'portal_documents'), orderBy('timestamp', 'desc')));
+    const snap = await getDocs(query(collection(db, 'portal_documents'), orderBy('timestamp', 'desc'), limit(200)));
     setDocuments(
       snap.docs
         .map((item) => ({ id: item.id, ...item.data() } as DbDocument))
@@ -790,8 +792,21 @@ function PfmDocsTab({
     try {
       const timestamp = Date.now();
       for (const file of selectedFiles) {
+        const compressedFile = await compressFileForUpload(file);
+
+        // Clean up any existing document with the same name in this category
+        const duplicates = documents.filter(
+          (docItem) => docItem.name.toLowerCase() === file.name.toLowerCase()
+        );
+        for (const oldDoc of duplicates) {
+          if (oldDoc.downloadUrl) {
+            await deleteObject(ref(storage, oldDoc.downloadUrl)).catch(() => undefined);
+          }
+          await deleteDoc(doc(db, 'portal_documents', oldDoc.id)).catch(() => undefined);
+        }
+
         const storageRef = ref(storage, `documents/${selectedCategory}/${timestamp}_${safeFileName(file.name)}`);
-        await uploadBytes(storageRef, file);
+        await uploadBytes(storageRef, compressedFile);
         const downloadUrl = await getDownloadURL(storageRef);
         const docRef = doc(collection(db, 'portal_documents'));
         await setDoc(docRef, {
@@ -1034,6 +1049,37 @@ function VotingTab({
   async function save() {
     setSaving(true);
     try {
+      // Clean up orphaned voting option images from Storage before saving
+      try {
+        const oldSnap = await getDoc(doc(db, 'config', 'voting_config'));
+        if (oldSnap.exists()) {
+          const oldCategories = (oldSnap.data().categories || []) as VotingCategory[];
+          const oldUrls = new Set<string>();
+          oldCategories.forEach((cat) => {
+            (cat.options || []).forEach((opt) => {
+              if (opt.imageUrl) oldUrls.add(opt.imageUrl);
+            });
+          });
+          const newUrls = new Set<string>();
+          categories.forEach((cat) => {
+            (cat.options || []).forEach((opt) => {
+              if (opt.imageUrl) newUrls.add(opt.imageUrl);
+            });
+          });
+          for (const oldUrl of oldUrls) {
+            if (!newUrls.has(oldUrl)) {
+              try {
+                await deleteObject(ref(storage, oldUrl));
+              } catch {
+                // Ignore if already deleted
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-fatal cleanup error
+      }
+
       await setDoc(doc(db, 'config', 'voting_config'), {
         visible,
         header,
@@ -1391,8 +1437,17 @@ function VotingOptionEditor({
     if (!file) return;
     setUploading(true);
     try {
-      const storageRef = ref(storage, `voting/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
+      // Delete previous option image if replacing before saving
+      if (option.imageUrl) {
+        try {
+          await deleteObject(ref(storage, option.imageUrl));
+        } catch {
+          // Ignore if already deleted
+        }
+      }
+      const compressedFile = await compressVotingImage(file);
+      const storageRef = ref(storage, `voting/${Date.now()}_${compressedFile.name}`);
+      await uploadBytes(storageRef, compressedFile);
       const url = await getDownloadURL(storageRef);
       onChange({ ...option, imageUrl: url });
     } catch (err) {
@@ -1441,7 +1496,7 @@ function SubmissionsMonitorTab({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'submissions'), orderBy('timestamp', 'desc')));
+      const snap = await getDocs(query(collection(db, 'submissions'), orderBy('timestamp', 'desc'), limit(50)));
       setSubmissions(
         snap.docs.map((item) => {
           const data = item.data();

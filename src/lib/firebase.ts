@@ -25,7 +25,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Remote Config is browser-only
+// Remote Config is browser-only (3-hour minimum fetch interval)
 const remoteConfig = typeof window !== "undefined" ? getRemoteConfig(app) : null;
+if (remoteConfig) {
+  remoteConfig.settings.minimumFetchIntervalMillis = 10800 * 1000;
+}
 
 export { app, auth, db, storage, remoteConfig };

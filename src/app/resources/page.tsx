@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSearchParams } from 'next/navigation';
 import styles from './resources.module.css';
@@ -67,23 +67,21 @@ function ResourcesPageContent() {
   const [checklists, setChecklists] = useState(initialChecklists);
 
   useEffect(() => {
-    // Listen for global sync or just fetch once
-    // To match Android's sync behavior, we listen to portal_documents
-    const q = query(collection(db, "portal_documents"), orderBy("timestamp", "desc"));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as DbDocument[];
-      setDocuments(docsData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching documents:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    const q = query(collection(db, "portal_documents"), orderBy("timestamp", "desc"), limit(200));
+    getDocs(q)
+      .then((snapshot) => {
+        const docsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as DbDocument[];
+        setDocuments(docsData);
+      })
+      .catch((error) => {
+        console.error("Error fetching documents:", error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const getDocsByCategory = (category: string) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
@@ -15,8 +15,16 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = setTimeout(() => setResetCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resetCooldown]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,17 +67,22 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async () => {
+    if (resettingPassword || resetCooldown > 0) return;
     if (!email) {
       setError('Please enter your email to reset your password.');
       return;
     }
     setError(null);
     setMessage(null);
+    setResettingPassword(true);
     try {
       await sendPasswordResetEmail(auth, email.trim());
+      setResetCooldown(60);
       setMessage('Reset link sent to your email.');
     } catch {
       setError('Failed to send reset link. Verify your email.');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -146,8 +159,17 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="button" onClick={handleForgotPassword} className={styles.forgotPassword}>
-              Forgot Password?
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className={styles.forgotPassword}
+              disabled={resettingPassword || resetCooldown > 0}
+            >
+              {resettingPassword
+                ? 'Sending...'
+                : resetCooldown > 0
+                  ? `Forgot Password? (${resetCooldown}s)`
+                  : 'Forgot Password?'}
             </button>
 
             <button type="submit" className={styles.submitButton} disabled={loading}>
