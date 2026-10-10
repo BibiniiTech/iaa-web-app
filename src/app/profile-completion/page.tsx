@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { setCachedUserProfile } from '@/lib/firebase-cache';
 import styles from '../login/login.module.css';
 import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
@@ -54,12 +55,12 @@ export default function ProfileCompletionPage() {
         ? institutionName
         : mmda;
 
-      await setDoc(doc(db, 'users', user.uid), {
+      const profileData = {
         uid: user.uid,
         firstName: firstName.trim(),
         surname: surname.trim(),
         fullName: `${firstName.trim()} ${surname.trim()}`, // Added for Android compatibility
-        email: user.email,
+        email: user.email || '',
         phone: phone.trim(),
         institutionType,
         institutionName: (institutionType === 'MDA' || institutionType === 'SOE') ? institutionName.trim() : '',
@@ -69,7 +70,10 @@ export default function ProfileCompletionPage() {
         isProfileComplete: true,
         profileComplete: true, // For Android app compatibility
         updatedAt: new Date().toISOString()
-      });
+      };
+
+      await setDoc(doc(db, 'users', user.uid), profileData);
+      setCachedUserProfile(user.uid, profileData);
 
       router.push('/');
     } catch (err: unknown) {

@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
+import { getCachedConfigDoc, getCachedUserProfile } from '@/lib/firebase-cache';
 import styles from './submissions.module.css';
 import FileUpload from '@/components/submissions/FileUpload';
 import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
@@ -120,10 +121,13 @@ export default function SubmissionsPage() {
 
     const fetchData = async () => {
       try {
-        // Fetch User Profile
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
+        const [userData, portalData, deadlinesData] = await Promise.all([
+          getCachedUserProfile(user.uid),
+          getCachedConfigDoc<{ welcomeNotice?: string }>('portal'),
+          getCachedConfigDoc<{ json?: string }>('deadlines'),
+        ]);
+
+        if (userData) {
           setSenderName(`${userData.firstName || ''} ${userData.surname || ''}`.trim());
           setSenderEmail(String(userData.email || ''));
 
@@ -133,36 +137,25 @@ export default function SubmissionsPage() {
             setInstitutionType(type);
 
             if (type === 'MDA') {
-              setInstitutionName(userData.institutionName || userData.institution || '');
+              setInstitutionName(String(userData.institutionName || userData.institution || ''));
             } else {
-              setRegion(userData.region || '');
-              // Try to find matching MMDA from profile institution field
-              const profInstitution = userData.institution || '';
+              setRegion(String(userData.region || ''));
+              const profInstitution = String(userData.institution || '');
               setMmda(profInstitution);
             }
           }
         }
 
-        // Fetch Portal Config (welcomeNotice from config/portal)
-        const portalSnap = await getDoc(doc(db, 'config', 'portal'));
-        if (portalSnap.exists()) {
-          const data = portalSnap.data();
-          if (data.welcomeNotice) {
-            setPortalConfig({ description: data.welcomeNotice });
-          }
+        if (portalData?.welcomeNotice) {
+          setPortalConfig({ description: portalData.welcomeNotice });
         }
 
-        // Fetch Deadlines (json from config/deadlines)
+        // Parse Deadlines (json from config/deadlines)
         try {
-          const deadlinesSnap = await getDoc(doc(db, 'config', 'deadlines'));
           let fetchedDeadlines: Deadline[] = [];
-
-          if (deadlinesSnap.exists()) {
-            const json = deadlinesSnap.data()?.json;
-            if (json) {
-              const parsed = JSON.parse(json);
-              fetchedDeadlines = Array.isArray(parsed) ? parsed : [];
-            }
+          if (deadlinesData?.json) {
+            const parsed = JSON.parse(deadlinesData.json);
+            fetchedDeadlines = Array.isArray(parsed) ? parsed : [];
           }
 
           // Use defaults if fetched list is empty (Exact Android Logic)

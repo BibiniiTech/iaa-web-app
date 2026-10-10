@@ -3,12 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import {
   doc,
-  getDoc,
   writeBatch,
   increment,
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import {
+  getCachedConfigDoc,
+  getCachedUserProfile,
+  getCachedVotingResults,
+  getCachedVotingStatus,
+  setCachedVotingStatus,
+} from '@/lib/firebase-cache';
 import { onAuthStateChanged } from 'firebase/auth';
 import styles from './voting.module.css';
 
@@ -70,12 +76,12 @@ export default function VotingPage() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          const profileSnap = await getDoc(doc(db, 'users', user.uid));
-          if (profileSnap.exists()) {
-            setUserProfile({ uid: user.uid, ...profileSnap.data() } as UserProfile);
+          const profileData = await getCachedUserProfile(user.uid);
+          if (profileData) {
+            setUserProfile({ uid: user.uid, ...profileData } as UserProfile);
           } else {
             console.error("User profile not found in Firestore for UID:", user.uid);
-            setUserProfile(null); // Or handle as "not signed in/incomplete"
+            setUserProfile(null);
           }
         } catch (err) {
           console.error("Error fetching user profile:", err);
@@ -88,20 +94,10 @@ export default function VotingPage() {
     return () => unsubscribe();
   }, []);
 
-  const fetchVotingResults = async () => {
+  const fetchVotingResults = async (forceRefresh = false) => {
     try {
-      const snap = await getDoc(doc(db, 'config', 'voting_results'));
-      if (snap.exists()) {
-        const data = snap.data();
-        const catTotals: Record<string, number> = {};
-        const optCounts: Record<string, number> = {};
-        Object.entries(data).forEach(([key, val]) => {
-          const num = Number(val) || 0;
-          if (key.startsWith('cat_')) catTotals[key.replace('cat_', '')] = num;
-          if (key.startsWith('opt_')) optCounts[key.replace('opt_', '')] = num;
-        });
-        setVotingResults({ categoryTotals: catTotals, optionCounts: optCounts });
-      }
+      const results = await getCachedVotingResults(forceRefresh);
+      setVotingResults(results);
     } catch (error) {
       console.error("Error fetching 'voting_results':", error);
     }
@@ -110,28 +106,25 @@ export default function VotingPage() {
   useEffect(() => {
     async function loadConfigAndVotes() {
       try {
-        // 1. Load Config
-        const configSnap = await getDoc(doc(db, 'config', 'voting_config'));
-        if (configSnap.exists()) {
-          const data = configSnap.data();
+        const [configData, votedStatus, resultsData] = await Promise.all([
+          getCachedConfigDoc<Partial<VotingConfig>>('voting_config'),
+          userProfile?.uid ? getCachedVotingStatus(userProfile.uid) : Promise.resolve(false),
+          getCachedVotingResults(),
+        ]);
+
+        if (configData) {
           setConfig({
-            visible: data.visible ?? false,
-            header: data.header || '',
-            categories: data.categories || []
+            visible: configData.visible ?? false,
+            header: configData.header || '',
+            categories: configData.categories || []
           } as VotingConfig);
         }
 
-        // 2. Check if user already voted (single document read)
-        if (userProfile?.uid) {
-          const voteSnap = await getDoc(doc(db, 'votes', userProfile.uid));
-          if (voteSnap.exists()) {
-            setHasVoted(true);
-          }
+        if (votedStatus) {
+          setHasVoted(true);
         }
 
-        // 3. One-shot read for aggregated voting results (avoids O(V^2) real-time listener storm)
-        await fetchVotingResults();
-
+        setVotingResults(resultsData);
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string };
         console.error("General error in loadConfigAndVotes:", err.code, err.message);
@@ -217,7 +210,8 @@ export default function VotingPage() {
         batch.set(doc(db, 'config', 'voting_results'), updates, { merge: true });
       }
       await batch.commit();
-      await fetchVotingResults();
+      setCachedVotingStatus(userProfile.uid, true);
+      await fetchVotingResults(true);
       setHasVoted(true);
     } catch (error) {
       console.error("Error submitting vote:", error);
@@ -408,7 +402,7 @@ function CategoryVotingCard({
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={option.imageUrl} alt={option.text} className={styles.optionImage} />
+              <img src={option.imageUrl} alt={option.text} loading="lazy" decoding="async" className={styles.optionImage} />
               <div style={{ position: 'relative' }}>
                 <span className={styles.optionText}>{option.text}</span>
                 {isSelected && (

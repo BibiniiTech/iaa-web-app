@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getRemoteConfig } from "firebase/remote-config";
 
@@ -14,7 +19,8 @@ const firebaseConfig = {
 };
 
 // Next.js build-time fallback to prevent "auth/invalid-api-key" error
-const app = getApps().length > 0
+const isFirstInit = getApps().length === 0;
+const app = !isFirstInit
   ? getApp()
   : initializeApp({
       ...firebaseConfig,
@@ -22,7 +28,22 @@ const app = getApps().length > 0
     });
 
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+let db: ReturnType<typeof getFirestore>;
+if (typeof window !== "undefined" && isFirstInit) {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
+}
+
 const storage = getStorage(app);
 
 // Remote Config is browser-only (3-hour minimum fetch interval)

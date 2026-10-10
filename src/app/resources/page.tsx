@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getCachedPortalDocuments } from '@/lib/firebase-cache';
 import { useSearchParams } from 'next/navigation';
 import styles from './resources.module.css';
 
@@ -67,13 +66,8 @@ function ResourcesPageContent() {
   const [checklists, setChecklists] = useState(initialChecklists);
 
   useEffect(() => {
-    const q = query(collection(db, "portal_documents"), orderBy("timestamp", "desc"), limit(200));
-    getDocs(q)
-      .then((snapshot) => {
-        const docsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as DbDocument[];
+    getCachedPortalDocuments()
+      .then((docsData) => {
         setDocuments(docsData);
       })
       .catch((error) => {

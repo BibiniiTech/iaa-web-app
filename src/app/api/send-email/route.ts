@@ -17,6 +17,26 @@ type BrevoResponse = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Sliding-window rate limit per authenticated user / IP to prevent accidental
+// or malicious exhaustion of the Brevo 300 emails/day free tier under heavy load.
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_EMAILS_PER_WINDOW = 5;
+const callerRateLimits = new Map<string, number[]>();
+
+function isRateLimited(callerKey: string): boolean {
+  const now = Date.now();
+  const recent = (callerRateLimits.get(callerKey) || []).filter(
+    (ts) => now - ts < RATE_LIMIT_WINDOW_MS
+  );
+  if (recent.length >= MAX_EMAILS_PER_WINDOW) {
+    callerRateLimits.set(callerKey, recent);
+    return true;
+  }
+  recent.push(now);
+  callerRateLimits.set(callerKey, recent);
+  return false;
+}
+
 function normalizePeople(value: unknown): BrevoPerson[] {
   if (!Array.isArray(value)) return [];
 
@@ -55,17 +75,17 @@ function normalizeAttachments(value: unknown): WebAttachment[] | undefined {
   return attachments.length > 0 ? attachments : undefined;
 }
 
-async function verifyFirebaseAuthToken(authHeader: string | null): Promise<boolean> {
+async function verifyFirebaseAuthToken(authHeader: string | null): Promise<string | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false;
+    return null;
   }
   const idToken = authHeader.substring(7).trim();
-  if (!idToken) return false;
+  if (!idToken) return null;
 
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) {
     // If no Firebase API key is configured on server, cannot verify
-    return false;
+    return null;
   }
 
   try {
@@ -78,13 +98,16 @@ async function verifyFirebaseAuthToken(authHeader: string | null): Promise<boole
       }
     );
     if (!res.ok) {
-      return false;
+      return null;
     }
-    const data = (await res.json()) as { users?: unknown[] };
-    return Array.isArray(data.users) && data.users.length > 0;
+    const data = (await res.json()) as { users?: { localId?: string }[] };
+    if (Array.isArray(data.users) && data.users.length > 0) {
+      return data.users[0]?.localId || 'authenticated-user';
+    }
+    return null;
   } catch (err) {
     console.error('Firebase token verification failed:', err);
-    return false;
+    return null;
   }
 }
 
@@ -92,11 +115,21 @@ export async function POST(request: Request) {
   try {
     // 1. Authenticate caller
     const authHeader = request.headers.get('authorization');
-    const isAuthed = await verifyFirebaseAuthToken(authHeader);
-    if (!isAuthed) {
+    const callerUid = await verifyFirebaseAuthToken(authHeader);
+    if (!callerUid) {
       return NextResponse.json(
         { error: 'Unauthorized: Valid authentication token required.' },
         { status: 401 }
+      );
+    }
+
+    // 2. Enforce per-caller rate limit to protect Brevo daily quota
+    const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown-ip';
+    const rateKey = `${callerUid}:${forwardedFor}`;
+    if (isRateLimited(rateKey)) {
+      return NextResponse.json(
+        { error: 'Too many email requests. Please wait a minute before submitting again.' },
+        { status: 429 }
       );
     }
 

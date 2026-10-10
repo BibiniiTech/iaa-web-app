@@ -3,8 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import {
+  getCachedUserProfile,
+  setCachedUserProfile,
+  invalidateAllCaches,
+} from '@/lib/firebase-cache';
 import styles from './profile.module.css';
 import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
@@ -44,9 +49,8 @@ export default function ProfilePage() {
       }
 
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+        const data = await getCachedUserProfile(user.uid);
+        if (data) {
           const p: UserProfile = {
             uid: user.uid,
             email: user.email || '',
@@ -82,13 +86,19 @@ export default function ProfilePage() {
     setIsSaving(true);
     setMessage(null);
     try {
-      await updateDoc(doc(db, 'users', profile.uid), {
+      const updatedFields = {
         firstName: firstName.trim(),
         surname: surname.trim(),
         phone: phone.trim(),
         institution: institution.trim(),
         institutionType: institutionType,
         region: region,
+      };
+      await updateDoc(doc(db, 'users', profile.uid), updatedFields);
+      const existingCached = await getCachedUserProfile(profile.uid);
+      setCachedUserProfile(profile.uid, {
+        ...(existingCached || {}),
+        ...updatedFields,
       });
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (error) {
@@ -328,11 +338,13 @@ function AccountDeletion({ profile }: { profile: UserProfile | null }) {
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'users', profile.uid));
+      invalidateAllCaches();
       await deleteUser(auth.currentUser);
       router.push('/login');
     } catch (error) {
       console.error("Error deleting account:", error);
       alert("Failed to delete account. You may need to sign in again for security.");
+      invalidateAllCaches();
       await signOut(auth);
       router.push('/login');
     } finally {

@@ -6,9 +6,13 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './Navigation.module.css';
 
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  getCachedConfigDoc,
+  getCachedUserProfile,
+  invalidateAllCaches,
+} from '@/lib/firebase-cache';
 import LoginPage from '@/app/login/page';
 import Disclaimer from './Disclaimer';
 
@@ -139,16 +143,16 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const [userDoc, disclaimerSnap, pfmSnap, votingSnap] = await Promise.all([
-          getDoc(doc(db, 'users', firebaseUser.uid)),
-          getDoc(doc(db, 'config', 'show_disclaimer')),
-          getDoc(doc(db, 'config', 'show_pfm_league')),
-          getDoc(doc(db, 'config', 'voting_config')),
+        const [userData, disclaimerData, pfmData, votingData] = await Promise.all([
+          getCachedUserProfile(firebaseUser.uid),
+          getCachedConfigDoc<{ show?: boolean }>('show_disclaimer'),
+          getCachedConfigDoc<{ show?: boolean }>('show_pfm_league'),
+          getCachedConfigDoc<{ visible?: boolean }>('voting_config'),
         ]);
 
-        setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+        setIsAdmin(Boolean(userData && userData.role === 'admin'));
 
-        if (disclaimerSnap.exists() && disclaimerSnap.data().show) {
+        if (disclaimerData && disclaimerData.show) {
           setShowDisclaimer(true);
           const accepted = localStorage.getItem('disclaimer_accepted');
           setDisclaimerAccepted(!!accepted);
@@ -157,12 +161,12 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           setDisclaimerAccepted(true);
         }
 
-        if (pfmSnap.exists()) {
-          setShowPfmLeague(pfmSnap.data().show ?? true);
+        if (pfmData) {
+          setShowPfmLeague(pfmData.show ?? true);
         }
 
-        if (votingSnap.exists()) {
-          setShowVoting(votingSnap.data().visible ?? false);
+        if (votingData) {
+          setShowVoting(votingData.visible ?? false);
         }
       } else {
         setIsAdmin(false);
@@ -196,6 +200,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   };
 
   const handleSignOut = async () => {
+    invalidateAllCaches();
     await signOut(auth);
     router.push('/login');
   };

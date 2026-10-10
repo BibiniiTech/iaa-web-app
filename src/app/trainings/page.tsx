@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, doc, getDoc, onSnapshot, query, orderBy, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getCachedConfigDoc, getCachedPortalDocuments } from '@/lib/firebase-cache';
 import styles from './trainings.module.css';
 
 // ─── Data Types (matching Android's @Keep data classes) ────────────────────
@@ -115,49 +114,38 @@ export default function TrainingsPage() {
   const [loadingSeminars, setLoadingSeminars] = useState(true);
   const [loadingDocs, setLoadingDocs] = useState(true);
 
-  // Fetch seminars from Firestore (same path as Android: config/seminars)
   useEffect(() => {
-    async function fetchSeminars() {
+    async function fetchTrainingsData() {
       try {
-        const snap = await getDoc(doc(db, 'config', 'seminars'));
-        if (snap.exists()) {
-          const json = snap.data().json;
-          if (json) {
-            const parsed: Seminar[] = JSON.parse(json);
+        const [seminarsData, allDocs] = await Promise.all([
+          getCachedConfigDoc<{ json?: string }>('seminars'),
+          getCachedPortalDocuments(),
+        ]);
+
+        if (seminarsData?.json) {
+          try {
+            const parsed: Seminar[] = JSON.parse(seminarsData.json);
             setSeminars(parsed.length > 0 ? parsed : DEFAULT_SEMINARS);
-          } else {
+          } catch {
             setSeminars(DEFAULT_SEMINARS);
           }
         } else {
           setSeminars(DEFAULT_SEMINARS);
         }
+
+        setTrainingDocs(
+          allDocs
+            .filter((d) => d.category === 'training_resources')
+            .sort((a, b) => b.timestamp - a.timestamp)
+        );
       } catch {
         setSeminars(DEFAULT_SEMINARS);
       } finally {
         setLoadingSeminars(false);
+        setLoadingDocs(false);
       }
     }
-    fetchSeminars();
-  }, []);
-
-  // Listen to training_resources documents (same collection/filter as Android)
-  useEffect(() => {
-    const q = query(
-      collection(db, 'portal_documents'),
-      where('category', '==', 'training_resources'),
-      orderBy('timestamp', 'desc')
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setTrainingDocs(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as DbDocument))
-        );
-        setLoadingDocs(false);
-      },
-      () => setLoadingDocs(false)
-    );
-    return () => unsub();
+    fetchTrainingsData();
   }, []);
 
   // SVG Icons

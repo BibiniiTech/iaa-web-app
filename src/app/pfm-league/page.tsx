@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
 import { getValue, fetchAndActivate } from 'firebase/remote-config';
-import { db, remoteConfig } from '@/lib/firebase';
+import { remoteConfig } from '@/lib/firebase';
+import { getCachedConfigDoc } from '@/lib/firebase-cache';
 import styles from './pfm-league.module.css';
 
 // ─── Data Types (matching Android) ─────────────────────────────────────────
@@ -181,8 +181,6 @@ export default function PFMLeaguePage() {
 
       if (remoteConfig) {
         try {
-          // Set standard settings/intervals
-          remoteConfig.settings.minimumFetchIntervalMillis = 3600000; // 1 hour
           await fetchAndActivate(remoteConfig);
           rcHeading = getValue(remoteConfig, 'pfm_league_heading').asString();
           rcDescription = getValue(remoteConfig, 'pfm_league_description').asString();
@@ -200,17 +198,17 @@ export default function PFMLeaguePage() {
       let firestoreDescription = '';
 
       try {
-        const [mdaSnap, mmdaSnap, headingSnap, descSnap] = await Promise.all([
-          getDoc(doc(db, 'config', 'pfm_league_mda')),
-          getDoc(doc(db, 'config', 'pfm_league_mmda')),
-          getDoc(doc(db, 'config', 'pfm_league_heading')),
-          getDoc(doc(db, 'config', 'pfm_league_description')),
+        const [mdaData, mmdaData, headingData, descData] = await Promise.all([
+          getCachedConfigDoc<{ json?: string }>('pfm_league_mda'),
+          getCachedConfigDoc<{ json?: string }>('pfm_league_mmda'),
+          getCachedConfigDoc<{ value?: string }>('pfm_league_heading'),
+          getCachedConfigDoc<{ value?: string }>('pfm_league_description'),
         ]);
 
-        if (mdaSnap.exists()) firestoreMdaJson = mdaSnap.data().json || '';
-        if (mmdaSnap.exists()) firestoreMmdaJson = mmdaSnap.data().json || '';
-        if (headingSnap.exists()) firestoreHeading = headingSnap.data().value || '';
-        if (descSnap.exists()) firestoreDescription = descSnap.data().value || '';
+        if (mdaData) firestoreMdaJson = mdaData.json || '';
+        if (mmdaData) firestoreMmdaJson = mmdaData.json || '';
+        if (headingData) firestoreHeading = headingData.value || '';
+        if (descData) firestoreDescription = descData.value || '';
       } catch (e) {
         console.warn('Failed to load Firestore config docs:', e);
       }

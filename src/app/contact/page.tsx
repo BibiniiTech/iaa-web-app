@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getCachedConfigDoc } from '@/lib/firebase-cache';
 import styles from './contact.module.css';
 import Image from 'next/image';
 
@@ -60,9 +59,9 @@ export default function ContactPage() {
   useEffect(() => {
     async function fetchContact() {
       try {
-        const docSnap = await getDoc(doc(db, 'config', 'contact'));
-        if (docSnap.exists()) {
-          setContact(docSnap.data() as ContactConfig);
+        const data = await getCachedConfigDoc<Partial<ContactConfig>>('contact_info');
+        if (data) {
+          setContact((prev) => ({ ...prev, ...data }));
         }
       } catch (error) {
         console.error("Error fetching contact config:", error);

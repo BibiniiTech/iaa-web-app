@@ -7,7 +7,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -16,6 +15,13 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
+import {
+  getCachedUserProfile,
+  getCachedConfigDoc,
+  getCachedPortalDocuments,
+  invalidatePortalDocumentsCache,
+  invalidateAllCaches,
+} from '@/lib/firebase-cache';
 import { compressFileForUpload, compressVotingImage } from '@/lib/compression';
 import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
 import styles from './admin.module.css';
@@ -450,6 +456,7 @@ export default function AdminPage() {
 
   const triggerSync = useCallback(async () => {
     await setDoc(doc(db, 'config', 'sync_state'), { lastUpdated: Date.now() }, { merge: true });
+    invalidateAllCaches();
   }, []);
 
   useEffect(() => {
@@ -460,14 +467,14 @@ export default function AdminPage() {
         return;
       }
 
-      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-      if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+      const userData = await getCachedUserProfile(currentUser.uid);
+      if (!userData || userData.role !== 'admin') {
         router.push('/');
         setLoading(false);
         return;
       }
 
-      setUser(userDoc.data() as AdminUser);
+      setUser(userData as AdminUser);
       setLoading(false);
     });
 
@@ -559,19 +566,19 @@ function HomeContactTab({
 
   useEffect(() => {
     async function load() {
-      const [welcomeSnap, noticeSnap, contactSnap, disclaimerSnap, pfmSnap] = await Promise.all([
-        getDoc(doc(db, 'config', 'welcome_note')),
-        getDoc(doc(db, 'config', 'notices')),
-        getDoc(doc(db, 'config', 'contact_info')),
-        getDoc(doc(db, 'config', 'show_disclaimer')),
-        getDoc(doc(db, 'config', 'show_pfm_league')),
+      const [welcomeData, noticeData, contactData, disclaimerData, pfmData] = await Promise.all([
+        getCachedConfigDoc<Partial<WelcomeConfig>>('welcome_note'),
+        getCachedConfigDoc<Partial<NoticeConfig>>('notices'),
+        getCachedConfigDoc<Partial<ContactConfig>>('contact_info'),
+        getCachedConfigDoc<{ show?: boolean }>('show_disclaimer'),
+        getCachedConfigDoc<{ show?: boolean }>('show_pfm_league'),
       ]);
 
-      if (welcomeSnap.exists()) setWelcome({ ...DEFAULT_WELCOME, ...(welcomeSnap.data() as Partial<WelcomeConfig>) });
-      if (noticeSnap.exists()) setNotice({ ...DEFAULT_NOTICE, ...(noticeSnap.data() as Partial<NoticeConfig>) });
-      if (contactSnap.exists()) setContact({ ...DEFAULT_CONTACT, ...(contactSnap.data() as Partial<ContactConfig>) });
-      if (disclaimerSnap.exists()) setShowDisclaimer(disclaimerSnap.data().show ?? true);
-      if (pfmSnap.exists()) setShowPfmLeague(pfmSnap.data().show ?? true);
+      if (welcomeData) setWelcome({ ...DEFAULT_WELCOME, ...welcomeData });
+      if (noticeData) setNotice({ ...DEFAULT_NOTICE, ...noticeData });
+      if (contactData) setContact({ ...DEFAULT_CONTACT, ...contactData });
+      if (disclaimerData) setShowDisclaimer(disclaimerData.show ?? true);
+      if (pfmData) setShowPfmLeague(pfmData.show ?? true);
     }
 
     load().catch(() => showMessage('error', 'Failed to load home and contact configuration.'));
@@ -646,8 +653,8 @@ function RecipientEmailsTab({
 
   useEffect(() => {
     async function load() {
-      const snap = await getDoc(doc(db, 'config', 'recipient_emails'));
-      setConfigs(parseRecipientEmails(snap.exists() ? String(snap.data().json || '') : ''));
+      const data = await getCachedConfigDoc<{ json?: string }>('recipient_emails');
+      setConfigs(parseRecipientEmails(data ? String(data.json || '') : ''));
     }
 
     load().catch(() => showMessage('error', 'Failed to load email configuration.'));
@@ -743,23 +750,24 @@ function PfmDocsTab({
   triggerSync: () => Promise<void>;
 }) {
   const [selectedCategory, setSelectedCategory] = useState<PortalDocCategory>('legislations');
-  const [documents, setDocuments] = useState<DbDocument[]>([]);
+  const [allDocuments, setAllDocuments] = useState<DbDocument[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [processingCsv, setProcessingCsv] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const loadDocuments = useCallback(async () => {
-    const snap = await getDocs(query(collection(db, 'portal_documents'), orderBy('timestamp', 'desc'), limit(200)));
-    setDocuments(
-      snap.docs
-        .map((item) => ({ id: item.id, ...item.data() } as DbDocument))
-        .filter((item) => item.category === selectedCategory)
-    );
-  }, [selectedCategory]);
+  const loadDocuments = useCallback(async (forceRefresh = false) => {
+    const docs = await getCachedPortalDocuments(forceRefresh);
+    setAllDocuments(docs as DbDocument[]);
+  }, []);
+
+  const documents = useMemo(
+    () => allDocuments.filter((item) => item.category === selectedCategory),
+    [allDocuments, selectedCategory]
+  );
 
   useEffect(() => {
     Promise.resolve()
-      .then(loadDocuments)
+      .then(() => loadDocuments(false))
       .catch(() => showMessage('error', 'Failed to load portal documents.'));
   }, [loadDocuments, showMessage]);
 
@@ -818,8 +826,9 @@ function PfmDocsTab({
         });
       }
       setSelectedFiles([]);
+      invalidatePortalDocumentsCache();
       await triggerSync();
-      await loadDocuments();
+      await loadDocuments(true);
       showMessage('success', 'Documents uploaded and logged successfully!');
     } catch {
       showMessage('error', 'Failed to upload documents.');
@@ -834,8 +843,9 @@ function PfmDocsTab({
       if (documentItem.downloadUrl) {
         await deleteObject(ref(storage, documentItem.downloadUrl)).catch(() => undefined);
       }
+      invalidatePortalDocumentsCache();
       await triggerSync();
-      await loadDocuments();
+      await loadDocuments(true);
       showMessage('success', 'Document deleted.');
     } catch {
       showMessage('error', 'Failed to delete document.');
@@ -907,12 +917,12 @@ function DatesSeminarsTab({
   const [savingDeadlines, setSavingDeadlines] = useState(false);
 
   const load = useCallback(async () => {
-    const [deadlinesSnap, seminarsSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'deadlines')),
-      getDoc(doc(db, 'config', 'seminars')),
+    const [deadlinesData, seminarsData] = await Promise.all([
+      getCachedConfigDoc<{ json?: string }>('deadlines'),
+      getCachedConfigDoc<{ json?: string }>('seminars'),
     ]);
-    setDeadlines(deadlinesSnap.exists() ? parseJsonList<Deadline>(String(deadlinesSnap.data().json || ''), DEFAULT_DEADLINES) : DEFAULT_DEADLINES);
-    setSeminars(seminarsSnap.exists() ? parseJsonList<Seminar>(String(seminarsSnap.data().json || ''), DEFAULT_SEMINARS) : DEFAULT_SEMINARS);
+    setDeadlines(deadlinesData ? parseJsonList<Deadline>(String(deadlinesData.json || ''), DEFAULT_DEADLINES) : DEFAULT_DEADLINES);
+    setSeminars(seminarsData ? parseJsonList<Seminar>(String(seminarsData.json || ''), DEFAULT_SEMINARS) : DEFAULT_SEMINARS);
   }, []);
 
   useEffect(() => {
@@ -1034,9 +1044,8 @@ function VotingTab({
 
   useEffect(() => {
     async function load() {
-      const snap = await getDoc(doc(db, 'config', 'voting_config'));
-      if (snap.exists()) {
-        const data = snap.data();
+      const data = await getCachedConfigDoc<{ visible?: boolean; header?: string; categories?: VotingCategory[] }>('voting_config');
+      if (data) {
         setVisible(data.visible ?? false);
         setHeader(data.header || '');
         setCategories(data.categories || []);
@@ -1051,9 +1060,9 @@ function VotingTab({
     try {
       // Clean up orphaned voting option images from Storage before saving
       try {
-        const oldSnap = await getDoc(doc(db, 'config', 'voting_config'));
-        if (oldSnap.exists()) {
-          const oldCategories = (oldSnap.data().categories || []) as VotingCategory[];
+        const oldData = await getCachedConfigDoc<{ categories?: VotingCategory[] }>('voting_config');
+        if (oldData) {
+          const oldCategories = (oldData.categories || []) as VotingCategory[];
           const oldUrls = new Set<string>();
           oldCategories.forEach((cat) => {
             (cat.options || []).forEach((opt) => {
@@ -1463,7 +1472,7 @@ function VotingOptionEditor({
       <div style={{ width: '60px', height: '60px', background: '#eee', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
         {option.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={option.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={option.imageUrl} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '0.8rem' }}>No Img</div>
         )}

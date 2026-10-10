@@ -1,5 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { getCachedConfigDoc } from './firebase-cache';
 
 export interface CloudConfig {
   mda_to?: string[];
@@ -46,17 +45,14 @@ const DEFAULT_EMAIL_CONFIGS: Record<string, CloudConfig> = {
   },
 };
 
-let cachedConfigJson: string | null = null;
-
 async function getCloudData(category: string): Promise<CloudConfig> {
-  if (cachedConfigJson === null) {
-    try {
-      const configDoc = await getDoc(doc(db, 'config', 'recipient_emails'));
-      cachedConfigJson = configDoc.exists() ? String(configDoc.data().json || "") : "";
-    } catch (error) {
-      console.error("Failed to fetch recipient_emails from Firestore", error);
-      cachedConfigJson = "";
-    }
+  let cachedConfigJson = "";
+  try {
+    const configData = await getCachedConfigDoc<{ json?: string }>('recipient_emails');
+    cachedConfigJson = configData ? String(configData.json || "") : "";
+  } catch (error) {
+    console.error("Failed to fetch recipient_emails from Firestore", error);
+    cachedConfigJson = "";
   }
 
   if (cachedConfigJson) {

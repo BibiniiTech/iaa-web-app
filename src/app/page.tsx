@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
+import { getCachedConfigDoc, getCachedUserProfile } from '@/lib/firebase-cache';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import styles from './page.module.css';
@@ -67,53 +67,45 @@ export default function Home() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // 1. Fetch User Profile
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setProfile(userData);
+        try {
+          const [userData, welcomeData, noticeData, seminarsData, deadlinesData] = await Promise.all([
+            getCachedUserProfile(currentUser.uid),
+            getCachedConfigDoc<WelcomeConfig>('welcome_note'),
+            getCachedConfigDoc<NoticeConfig>('notices'),
+            getCachedConfigDoc<{ json?: string }>('seminars'),
+            getCachedConfigDoc<{ json?: string }>('deadlines'),
+          ]);
 
-          // Profile completion check
-          const isComplete = userData.isProfileComplete || (
-            userData.firstName &&
-            userData.surname &&
-            userData.phone &&
-            (userData.institution || userData.institutionName)
-          );
-
-          if (!isComplete) {
+          if (userData) {
+            setProfile(userData);
+            const isComplete = userData.isProfileComplete || userData.profileComplete || (
+              userData.firstName &&
+              userData.surname &&
+              userData.phone &&
+              (userData.institution || userData.institutionName)
+            );
+            if (!isComplete) {
+              router.push('/profile-completion');
+            }
+          } else {
             router.push('/profile-completion');
           }
-        } else {
-          router.push('/profile-completion');
-        }
 
-        // 2. Fetch Dashboard Configuration (Same as Android App)
-        try {
-          // Fetch Welcome Note
-          const welcomeSnap = await getDoc(doc(db, 'config', 'welcome_note'));
-          if (welcomeSnap.exists()) {
-            setWelcome(welcomeSnap.data() as WelcomeConfig);
+          if (welcomeData) {
+            setWelcome(welcomeData);
+          }
+          if (noticeData) {
+            setNotice(noticeData);
           }
 
-          // Fetch Notices
-          const noticeSnap = await getDoc(doc(db, 'config', 'notices'));
-          if (noticeSnap.exists()) {
-            setNotice(noticeSnap.data() as NoticeConfig);
-          }
-
-          // Fetch and Calculate Seminar Counts
-          const seminarsSnap = await getDoc(doc(db, 'config', 'seminars'));
-          let seminarCount = 0;
           let seminars: Seminar[] = [];
-
-          if (seminarsSnap.exists()) {
-            const json = seminarsSnap.data().json;
-            if (json) {
-              seminars = JSON.parse(json) as Seminar[];
+          if (seminarsData?.json) {
+            try {
+              seminars = JSON.parse(seminarsData.json) as Seminar[];
+            } catch {
+              seminars = [];
             }
           }
-
           if (seminars.length === 0) {
             seminars = DEFAULT_SEMINARS;
           }
@@ -124,29 +116,25 @@ export default function Home() {
           thirtyDaysFromNow.setDate(today.getDate() + 30);
           thirtyDaysFromNow.setHours(23, 59, 59, 999);
 
-          seminarCount = seminars.filter(sem => {
+          const seminarCount = seminars.filter(sem => {
             const semDate = new Date(sem.date);
             if (isNaN(semDate.getTime())) return true;
             return semDate >= today && semDate <= thirtyDaysFromNow;
           }).length;
 
-          // Fetch and Calculate Deadline Counts
-          const deadlinesSnap = await getDoc(doc(db, 'config', 'deadlines'));
-          let submissionCount = 0;
           let deadlines: Deadline[] = [];
-
-          if (deadlinesSnap.exists()) {
-            const json = deadlinesSnap.data().json;
-            if (json) {
-              deadlines = JSON.parse(json) as Deadline[];
+          if (deadlinesData?.json) {
+            try {
+              deadlines = JSON.parse(deadlinesData.json) as Deadline[];
+            } catch {
+              deadlines = [];
             }
           }
-
           if (deadlines.length === 0) {
             deadlines = DEFAULT_DEADLINES;
           }
 
-          submissionCount = deadlines.filter(d => {
+          const submissionCount = deadlines.filter(d => {
             const dDate = new Date(d.dateString);
             if (isNaN(dDate.getTime())) return true;
             return dDate >= today && dDate <= thirtyDaysFromNow;
@@ -156,11 +144,9 @@ export default function Home() {
             seminars: seminarCount,
             submissions: submissionCount
           });
-
         } catch (error) {
           console.error("Error fetching dashboard data:", error);
         }
-
       }
       setLoading(false);
     });
