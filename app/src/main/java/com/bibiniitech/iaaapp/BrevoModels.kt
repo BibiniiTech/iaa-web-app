@@ -1,15 +1,27 @@
 package com.bibiniitech.iaaapp
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
+
+@Keep
 data class BrevoEmailRequest(
-    val sender: BrevoPerson,
-    val to: List<BrevoPerson>,
-    val cc: List<BrevoPerson>? = null,
-    val bcc: List<BrevoPerson>? = null,
-    val subject: String,
-    val htmlContent: String,
-    val attachment: List<BrevoAttachment>? = null
+    @SerializedName("sender") val sender: BrevoPerson,
+    @SerializedName("to") val to: List<BrevoPerson>,
+    @SerializedName("cc") val cc: List<BrevoPerson>? = null,
+    @SerializedName("bcc") val bcc: List<BrevoPerson>? = null,
+    @SerializedName("subject") val subject: String,
+    @SerializedName("htmlContent") val htmlContent: String,
+    @SerializedName("attachment") val attachment: List<BrevoAttachment>? = null
 )
 
-data class BrevoPerson(val name: String? = null, val email: String)
+@Keep
+data class BrevoPerson(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("email") val email: String
+)
 
-data class BrevoAttachment(val content: String, val name: String)
+@Keep
+data class BrevoAttachment(
+    @SerializedName("content") val content: String,
+    @SerializedName("name") val name: String
+)

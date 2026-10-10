@@ -5,16 +5,11 @@ import android.net.Uri
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
+import androidx.work.ListenableWorker.Result
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.io.File
 
-class SubmissionWorker(
-    context: Context,
-    params: WorkerParameters
-) : CoroutineWorker(context, params) {
-
+class SubmissionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val category = inputData.getString("category") ?: return Result.failure()
         val institutionType = inputData.getString("institutionType") ?: ""
@@ -25,54 +20,47 @@ class SubmissionWorker(
         val reportName = inputData.getString("reportName") ?: ""
         val subject = inputData.getString("subject") ?: ""
         val body = inputData.getString("body") ?: ""
-        val smtpUser = inputData.getString("smtpUser") ?: ""
-        val smtpPass = inputData.getString("smtpPass") ?: ""
-        
+        val apiKey = inputData.getString("apiKey") ?: ""
         val toRecipients = inputData.getStringArray("toRecipients")?.toList() ?: emptyList()
         val ccRecipients = inputData.getStringArray("ccRecipients")?.toList() ?: emptyList()
         val bccRecipients = inputData.getStringArray("bccRecipients")?.toList() ?: emptyList()
-        
-        // Attachments are passed as a JSON list of Uri/Name pairs
         val attachmentsJson = inputData.getString("attachmentsJson") ?: "[]"
-        val attachmentType = object : TypeToken<List<Pair<String, String>>>() {}.type
-        val attachmentsData: List<Pair<String, String>> = Gson().fromJson(attachmentsJson, attachmentType)
-        val attachments = attachmentsData.map { Uri.parse(it.first) to it.second }
+        val userId = inputData.getString("userId") ?: ""
+
+        val finalToRecipients = toRecipients.toMutableList()
+        if (senderEmail.isNotBlank() && !finalToRecipients.contains(senderEmail)) {
+            finalToRecipients.add(senderEmail)
+        }
+
+        val type = object : TypeToken<List<Pair<String, String>>>() {}.type
+        val attachmentsList: List<Pair<String, String>> = Gson().fromJson(attachmentsJson, type)
+        val attachments = attachmentsList.map { Uri.parse(it.first) to it.second }
 
         val emailSender = EmailSender(applicationContext)
+        val success = emailSender.sendEmailWithBrevo(
+            to = finalToRecipients,
+            cc = ccRecipients,
+            bcc = bccRecipients,
+            subject = subject,
+            body = body,
+            attachments = attachments,
+            apiKey = apiKey
+        )
 
-        return try {
-            Log.d("SubmissionWorker", "Attempting background submission for $institution")
-            
-            val success = emailSender.sendEmailWithAttachments(
-                to = toRecipients,
-                cc = ccRecipients,
-                bcc = bccRecipients,
-                subject = subject,
-                body = body,
-                attachments = attachments,
-                smtpUser = smtpUser,
-                smtpPass = smtpPass
+        return if (success) {
+            FirebaseHelper.logSubmission(
+                category = category,
+                institutionType = institutionType,
+                institution = institution,
+                region = region,
+                senderName = senderName,
+                senderEmail = senderEmail,
+                fileNames = attachments.map { it.second },
+                reportName = reportName,
+                userId = userId
             )
-
-            if (success) {
-                FirebaseHelper.logSubmission(
-                    category = category,
-                    institutionType = institutionType,
-                    institution = institution,
-                    region = region,
-                    senderName = senderName,
-                    senderEmail = senderEmail,
-                    fileNames = attachments.map { it.second },
-                    reportName = reportName
-                )
-                Log.d("SubmissionWorker", "Background submission successful")
-                Result.success()
-            } else {
-                Log.w("SubmissionWorker", "Email sending failed, retrying...")
-                Result.retry()
-            }
-        } catch (e: Exception) {
-            Log.e("SubmissionWorker", "Error in SubmissionWorker", e)
+            Result.success()
+        } else {
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }

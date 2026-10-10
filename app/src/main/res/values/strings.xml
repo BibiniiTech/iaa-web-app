@@ -12,7 +12,7 @@
     <string name="upcoming_seminars">Upcoming Seminars</string>
     <string name="pending_submissions">Pending Submissions</string>
     <string name="notices_title">Notices</string>
-    <string name="notices_office_relocation">The IAA has relocated its office premises to Tumu Avenue, Kanda Accra - Ghana with Digital Address: GV-002-6511</string>
+    <string name="notices_office_relocation">The IAA has relocated its office premises to Tumu Avenue, Kanda Accra – Ghana with Digital Address: GV-002-6511</string>
 
     <!-- Resources Screen -->
     <string name="resources_portal_title">Resources Portal</string>
@@ -20,7 +20,7 @@
     <string name="legislations_category">Legislations</string>
     <string name="legislations_subtitle">Acts, Regulations, L.I.s, etc.</string>
     <string name="guidelines_category">Guidelines &amp; Manuals</string>
-    <string name="guidelines_subtitle">Standard procedures, Directives and operational manuals.</string>
+    <string name="guidelines_subtitle">Standard Procedures, Directives and Operational Manuals.</string>
     <string name="templates_category">Reporting Templates</string>
     <string name="templates_subtitle">Standard formats for various reports.</string>
     <string name="no_legislations">No legislations available</string>
@@ -42,4 +42,5 @@
     <string name="tap_to_open_full_app">Tap to open in full app</string>
     <string name="open_in_maps">Open in Maps</string>
     <string name="map_preview_not_supported">Map Preview\n(WebView not supported in Preview)</string>
+    <string name="default_web_client_id">586023153507-5nbfh2rumk3qo41fkv9f6odfn9s4a16l.apps.googleusercontent.com</string>
 </resources>

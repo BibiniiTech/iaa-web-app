@@ -3,7 +3,6 @@ package com.bibiniitech.iaaapp
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.provider.Settings
 import android.util.Base64
 import java.io.File
 import java.security.MessageDigest
@@ -24,7 +23,7 @@ object SecurityUtils {
             "/system/sd/xbin/su",
             "/system/bin/failsafe/su",
             "/data/local/su",
-            "/su/bin/su"
+            "/su/bin/su",
         )
         for (path in paths) {
             if (File(path).exists()) return true
@@ -36,7 +35,7 @@ object SecurityUtils {
             process = Runtime.getRuntime().exec(arrayOf("/system/xbin/which", "su"))
             val reader = process.inputStream.bufferedReader()
             reader.readLine() != null
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             false
         } finally {
             process?.destroy()
@@ -47,9 +46,10 @@ object SecurityUtils {
      * Checks if the app is running on an emulator.
      */
     fun isRunningOnEmulator(): Boolean {
+        val build = Build.FINGERPRINT
         return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
-                || Build.FINGERPRINT.startsWith("generic")
-                || Build.FINGERPRINT.startsWith("unknown")
+                || build.startsWith("generic")
+                || build.startsWith("unknown")
                 || Build.HARDWARE.contains("goldfish")
                 || Build.HARDWARE.contains("ranchu")
                 || Build.MODEL.contains("google_sdk")
@@ -81,28 +81,18 @@ object SecurityUtils {
         if (expectedSignatureHash.isEmpty()) return true // Skip if no hash provided (e.g. debug mode)
         
         return try {
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-            } else {
-                @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
-            }
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
 
-            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.signingInfo.signingCertificateHistory
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.signatures
-            }
+            val signatures = packageInfo.signingInfo?.signingCertificateHistory
 
-            for (signature in signatures) {
+            signatures?.forEach { signature ->
                 val md = MessageDigest.getInstance("SHA-256")
                 md.update(signature.toByteArray())
                 val currentHash = Base64.encodeToString(md.digest(), Base64.NO_WRAP)
                 if (currentHash == expectedSignatureHash) return true
             }
             false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -116,17 +106,26 @@ object SecurityUtils {
             "com.dimonvideo.luckypatcher",
             "com.android.vending.billing.InAppBillingService.LUCK",
             "com.blackmartalpha",
-            "org.adaway"
         )
         val pm = context.packageManager
         for (pkg in tamperApps) {
             try {
                 pm.getPackageInfo(pkg, 0)
                 return true
-            } catch (e: PackageManager.NameNotFoundException) {
+            } catch (_: PackageManager.NameNotFoundException) {
                 // Not found
             }
         }
         return false
+    }
+
+    /**
+     * Checks if USB Debugging is enabled.
+     */
+    fun isUsbDebuggingEnabled(context: Context): Boolean {
+        return android.provider.Settings.Global.getInt(
+            context.contentResolver,
+            android.provider.Settings.Global.ADB_ENABLED, 0
+        ) != 0
     }
 }
