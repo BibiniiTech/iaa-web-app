@@ -7,6 +7,7 @@
 .sidebar {
   width: var(--sidebar-width);
   height: 100vh;
+  height: 100dvh;
   background-color: var(--card-bg);
   color: var(--foreground);
   position: fixed;
@@ -151,30 +152,47 @@
   position: fixed;
   right: -280px;
   top: 0;
+  bottom: 0;
   width: 280px;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   background-color: var(--card-bg);
   color: var(--foreground);
   z-index: 1003;
   transition: right 0.3s ease;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
   box-shadow: -16px 0 32px rgba(0, 0, 0, 0.16);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .drawerOpen .mobileDrawer {
   right: 0;
 }
 
+.mobileDrawer .navLinks {
+  overflow-y: visible;
+  flex: 1 0 auto;
+  gap: 0.25rem;
+}
+
+.mobileDrawer .navLink {
+  padding: 10px 14px;
+}
+
 .closeButton {
   align-self: flex-end;
+  flex-shrink: 0;
   background: none;
   border: none;
   color: var(--primary);
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   width: 44px;
   height: 44px;
   display: flex;
@@ -248,8 +266,10 @@
 
 .mobileFooter {
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

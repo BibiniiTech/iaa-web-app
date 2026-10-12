@@ -200,6 +200,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   };
 
   const handleSignOut = async () => {
+    setIsDrawerOpen(false);
     invalidateAllCaches();
     await signOut(auth);
     router.push('/login');
