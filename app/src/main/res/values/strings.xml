@@ -30,7 +30,7 @@
     <!-- Contact Screen -->
     <string name="contact_us_title">Contact Us</string>
     <string name="head_office_title">Head Office</string>
-    <string name="head_office_address">Tumu Avenue, Kanda Accra - Ghana\nDigital Address: GV-002-6511</string>
+    <string name="head_office_address">Tumu Avenue, Kanda Accra – Ghana\nDigital Address: GV-002-6511</string>
     <string name="phone_title">Phone</string>
     <string name="phone_number">+233 (0) 362 196 941</string>
     <string name="email_title">Email</string>

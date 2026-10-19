@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import com.bibiniitech.iaaapp.AuthResult
 import com.bibiniitech.iaaapp.FirebaseHelper
 import com.bibiniitech.iaaapp.data.InstitutionData
 import com.bibiniitech.iaaapp.ui.theme.IAAAppTheme
@@ -240,12 +241,19 @@ fun SignUpScreen(
 
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -276,9 +284,10 @@ fun SignUpScreen(
                     }
 
                     isLoading = true
+                    errorMessage = null
                     scope.launch {
-                        val success = FirebaseHelper.signUp(
-                            email = email.trim(),
+                        val result = FirebaseHelper.signUp(
+                            email = email.trim().lowercase(),
                             password = password.trim(),
                             firstName = firstName.trim(),
                             surname = surname.trim(),
@@ -286,11 +295,14 @@ fun SignUpScreen(
                             phone = phone.trim()
                         )
                         isLoading = false
-                        if (success) {
-                            Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
-                            onSignUpSuccess()
-                        } else {
-                            errorMessage = "Registration failed. Email might already be registered."
+                        when (result) {
+                            is AuthResult.Success -> {
+                                Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
+                                onSignUpSuccess()
+                            }
+                            is AuthResult.Error -> {
+                                errorMessage = result.message
+                            }
                         }
                     }
                 },

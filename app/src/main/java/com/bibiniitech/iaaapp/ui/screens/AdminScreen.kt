@@ -851,7 +851,8 @@ fun SubmissionsMonitorCard(
 @Composable
 fun SubmissionItem(submission: SubmissionRecord) {
     var expanded by remember { mutableStateOf(value = false) }
-    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault())
+    @Suppress("NonObservableLocale")
+    val sdf = remember { java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()) }
     val dateStr = sdf.format(java.util.Date(submission.timestamp))
 
     Card(

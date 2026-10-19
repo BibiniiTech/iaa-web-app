@@ -176,6 +176,7 @@ fun MainScreen() {
     
     // Auth state check
     val currentUser by FirebaseHelper.authState.collectAsState()
+    val isAuthInitialized by FirebaseHelper.isAuthInitialized.collectAsState()
     
     // Accessing Remote Config values
     val showContactUs = remember(isPreview) {
@@ -201,7 +202,8 @@ fun MainScreen() {
 
     var startDest by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(currentUser) {
+    LaunchedEffect(currentUser, isAuthInitialized) {
+        if (!isAuthInitialized && !isPreview) return@LaunchedEffect
         val user = currentUser
         if (user == null) {
             startDest = Screen.Login.route

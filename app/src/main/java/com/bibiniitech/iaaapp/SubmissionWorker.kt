@@ -2,6 +2,7 @@ package com.bibiniitech.iaaapp
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -34,7 +35,7 @@ class SubmissionWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
         val type = object : TypeToken<List<Pair<String, String>>>() {}.type
         val attachmentsList: List<Pair<String, String>> = Gson().fromJson(attachmentsJson, type)
-        val attachments = attachmentsList.map { Uri.parse(it.first) to it.second }
+        val attachments = attachmentsList.map { it.first.toUri() to it.second }
 
         val emailSender = EmailSender(applicationContext)
         val success = emailSender.sendEmailWithBrevo(

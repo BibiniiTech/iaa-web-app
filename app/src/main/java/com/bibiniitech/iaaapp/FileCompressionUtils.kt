@@ -10,7 +10,8 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
-import android.media.ExifInterface
+import androidx.exifinterface.media.ExifInterface
+import androidx.core.graphics.createBitmap
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -274,7 +275,7 @@ object FileCompressionUtils {
                 val bitmapWidth = (pageWidth * renderScale).roundToInt().coerceAtLeast(1)
                 val bitmapHeight = (pageHeight * renderScale).roundToInt().coerceAtLeast(1)
 
-                val rawBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+                val rawBitmap = createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
                 Canvas(rawBitmap).drawColor(Color.WHITE)
                 page.render(rawBitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
                 page.close()

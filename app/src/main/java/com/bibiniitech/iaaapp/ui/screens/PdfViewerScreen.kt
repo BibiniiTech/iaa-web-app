@@ -3,6 +3,7 @@ package com.bibiniitech.iaaapp.ui.screens
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -73,7 +74,7 @@ fun PdfViewerScreen(url: String, title: String, onBack: () -> Unit) {
                 
                 for (i in 0 until renderer.pageCount) {
                     val page = renderer.openPage(i)
-                    val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+                    val bitmap = createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     pages.add(bitmap)
                     page.close()

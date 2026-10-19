@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import com.bibiniitech.iaaapp.AuthResult
 import com.bibiniitech.iaaapp.FirebaseHelper
 import com.bibiniitech.iaaapp.R
 import com.bibiniitech.iaaapp.ui.theme.IAAAppTheme
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
@@ -146,19 +148,23 @@ fun LoginScreen(
                 TextButton(
                     enabled = !isResettingPassword && resetCooldownSeconds == 0,
                     onClick = {
-                        if (email.isBlank()) {
+                        val trimmedEmail = email.trim().lowercase()
+                        if (trimmedEmail.isBlank()) {
                             errorMessage = "Please enter your email to reset your password."
                         } else {
                             scope.launch {
                                 isResettingPassword = true
-                                val success = FirebaseHelper.sendPasswordResetEmail(email.trim())
-                                isResettingPassword = false
-                                if (success) {
-                                    resetCooldownSeconds = 60
-                                    Toast.makeText(context, "Reset link sent to your email.", Toast.LENGTH_LONG).show()
-                                } else {
-                                    errorMessage = "Failed to send reset link. Verify your email."
+                                errorMessage = null
+                                when (val result = FirebaseHelper.sendPasswordResetEmail(trimmedEmail)) {
+                                    is AuthResult.Success -> {
+                                        resetCooldownSeconds = 60
+                                        Toast.makeText(context, "Reset link sent to your email.", Toast.LENGTH_LONG).show()
+                                    }
+                                    is AuthResult.Error -> {
+                                        errorMessage = result.message
+                                    }
                                 }
+                                isResettingPassword = false
                             }
                         }
                     }
@@ -174,12 +180,19 @@ fun LoginScreen(
 
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -187,27 +200,31 @@ fun LoginScreen(
             // Sign In Button
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
+                    val trimmedEmail = email.trim().lowercase()
+                    if (trimmedEmail.isBlank() || password.isBlank()) {
                         errorMessage = "Please enter both email and password."
                         return@Button
                     }
                     isLoading = true
+                    errorMessage = null
                     scope.launch {
-                        val success = FirebaseHelper.signIn(email.trim(), password.trim())
-                        if (success) {
-                            val user = FirebaseHelper.getCurrentUser()
-                            if (user != null) {
-                                val complete = FirebaseHelper.isProfileComplete(user.uid)
-                                isLoading = false
-                                Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
-                                onLoginSuccess(complete, user.email, user.firstName)
-                            } else {
-                                isLoading = false
-                                onLoginSuccess(true, email.trim(), "User")
+                        when (val result = FirebaseHelper.signIn(trimmedEmail, password.trim())) {
+                            is AuthResult.Success -> {
+                                val user = FirebaseHelper.getCurrentUser()
+                                if (user != null) {
+                                    val complete = FirebaseHelper.isProfileComplete(user.uid)
+                                    isLoading = false
+                                    Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
+                                    onLoginSuccess(complete, user.email, user.firstName)
+                                } else {
+                                    isLoading = false
+                                    onLoginSuccess(true, trimmedEmail, "User")
+                                }
                             }
-                        } else {
-                            isLoading = false
-                            errorMessage = "Authentication failed. Please verify credentials."
+                            is AuthResult.Error -> {
+                                isLoading = false
+                                errorMessage = result.message
+                            }
                         }
                     }
                 },
@@ -239,7 +256,7 @@ fun LoginScreen(
                                 val credentialManager = CredentialManager.create(context)
                                 val googleIdOption = GetGoogleIdOption.Builder()
                                     .setFilterByAuthorizedAccounts(false)
-                                    .setServerClientId(context.getString(R.string.default_web_client_id))
+                                    .setServerClientId(context.resources.getString(R.string.default_web_client_id))
                                     .setAutoSelectEnabled(false)
                                     .build()
                                     
@@ -251,31 +268,37 @@ fun LoginScreen(
                                     request = request,
                                     context = context
                                 )
-                                
+                                    
                                 val credential = result.credential
                                 if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                                     val idToken = googleIdTokenCredential.idToken
-                                    val success = FirebaseHelper.signInWithGoogleCredential(idToken)
-                                    if (success) {
-                                        val user = FirebaseHelper.getCurrentUser()
-                                        if (user != null) {
-                                            val complete = FirebaseHelper.isProfileComplete(user.uid)
-                                            isLoading = false
-                                            Toast.makeText(context, "Signed in with Google successfully!", Toast.LENGTH_SHORT).show()
-                                            onLoginSuccess(complete, user.email, user.firstName)
-                                        } else {
-                                            isLoading = false
-                                            errorMessage = "Google sign-in succeeded but failed to retrieve user."
+                                    when (val authResult = FirebaseHelper.signInWithGoogleCredential(idToken)) {
+                                        is AuthResult.Success -> {
+                                            val user = FirebaseHelper.getCurrentUser()
+                                            if (user != null) {
+                                                val complete = FirebaseHelper.isProfileComplete(user.uid)
+                                                isLoading = false
+                                                Toast.makeText(context, "Signed in with Google successfully!", Toast.LENGTH_SHORT).show()
+                                                onLoginSuccess(complete, user.email, user.firstName)
+                                            } else {
+                                                isLoading = false
+                                                errorMessage = "Google sign-in succeeded but failed to retrieve user."
+                                            }
                                         }
-                                    } else {
-                                        isLoading = false
-                                        errorMessage = "Firebase authentication with Google failed."
+                                        is AuthResult.Error -> {
+                                            isLoading = false
+                                            errorMessage = authResult.message
+                                        }
                                     }
                                 } else {
                                     isLoading = false
                                     errorMessage = "Unexpected credential type."
                                 }
+                            } catch (e: NoCredentialException) {
+                                isLoading = false
+                                android.util.Log.e("LoginScreen", "No credentials available", e)
+                                errorMessage = "Google Sign-In failed: No credentials available.\n\nPrerequisites to fix:\n1. A Google account must be signed in on this device.\n2. The Web Client ID must be configured in strings.xml.\n3. The app's SHA-1 fingerprint must be registered in the Firebase console."
                             } catch (e: GetCredentialException) {
                                 isLoading = false
                                 val msg = e.localizedMessage ?: e.message ?: ""

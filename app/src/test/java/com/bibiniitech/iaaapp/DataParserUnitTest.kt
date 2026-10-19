@@ -699,8 +699,9 @@ class DataParserUnitTest {
             )
         }
         
-        // Write directly to artifacts directory so it appears in Antigravity UI
-        val previewFile = File("C:/Users/GuyGuy/.gemini/antigravity/brain/eebff258-fd3d-4712-882f-d737a84fcb4e/findings_expansion_preview.md")
+        // Write preview to build directory
+        val previewDir = File("build").apply { mkdirs() }
+        val previewFile = File(previewDir, "findings_expansion_preview.md")
         val sb = StringBuilder()
         sb.append("# Preview of Automatically Generated Findings & Criteria\n\n")
         sb.append("This document contains a preview of the **${previewFindings.size}** new audit findings generated from the unreferenced laws in `law_details.json`.\n\n")
@@ -1098,5 +1099,208 @@ class DataParserUnitTest {
             else -> key
         }
     }
+
+    @Test
+    fun extractLawTextFromPdf() {
+        val actsToParse = listOf(
+            Triple("IAA.pdf", 3, "IAA"),
+            Triple("PFM.pdf", 5, "PFM"),
+            Triple("PPA.pdf", 5, "PPA"),
+            Triple("LGA.pdf", 13, "LGA")
+        )
+        
+        actsToParse.forEach { (fileName, startPage, actCode) ->
+            // Look for files in the project root or one level up
+            val pdfFile = File("../$fileName").takeIf { it.exists() } ?: File(fileName)
+
+            if (pdfFile.exists()) {
+                println("Parsing $fileName (starting at page $startPage)...")
+                val sections = parseActPdf(pdfFile, actCode, startPage)
+                
+                val gson = GsonBuilder().setPrettyPrinting().create()
+                val jsonString = gson.toJson(sections)
+                
+                val outFile = File("extracted_${actCode}.json")
+                outFile.writeText(jsonString)
+                println("Extracted ${sections.size} sections from $fileName to ${outFile.absolutePath}")
+            } else {
+                println("File not found: ${pdfFile.absolutePath}")
+            }
+        }
+    }
+
+    private fun parseActPdf(pdfFile: File, actCode: String, startPage: Int): Map<String, String> {
+        val sections = mutableMapOf<String, String>()
+        Loader.loadPDF(pdfFile).use { document ->
+            val stripper = PDFTextStripper()
+            stripper.startPage = startPage
+            stripper.endPage = document.numberOfPages
+            val fullText = stripper.getText(document)
+            
+            // Find the start of the schedules to prevent section numbers in schedules from overwriting main sections.
+            val scheduleRegex = Regex("(?mi)^\\s*(?:SCHEDULE|SCHEDULES|FIRST SCHEDULE|SCHEDULE 1)\\b")
+            val scheduleMatch = scheduleRegex.find(fullText)
+            val mainText = if (scheduleMatch != null) {
+                fullText.substring(0, scheduleMatch.range.first)
+            } else {
+                fullText
+            }
+            
+            // Matches headers like "Section 1.", "1.", "Regulation 12." at the start of a line
+            val pattern = Regex("(?mi)^\\s*(?:Section|Regulation|Article)?\\s*(\\d+)\\.\\s+")
+            val matches = pattern.findAll(mainText).toList()
+            
+            for (i in matches.indices) {
+                val currentMatch = matches[i]
+                val sectionNum = currentMatch.groupValues[1]
+                val startIdx = currentMatch.range.last + 1
+                val endIdx = if (i + 1 < matches.size) matches[i + 1].range.first else mainText.length
+                
+                var sectionBody = mainText.substring(startIdx, endIdx).trim()
+                sectionBody = cleanSectionText(sectionBody, actCode)
+                
+                // Extract section title from the preceding text
+                val preStart = if (i > 0) matches[i - 1].range.last + 1 else 0
+                val preText = mainText.substring(preStart, currentMatch.range.first).trim()
+                val preLines = preText.split(Regex("\\r?\\n")).map { it.trim() }.filter { it.isNotEmpty() }
+                
+                val title = if (preLines.isNotEmpty()) {
+                    val lastLine = preLines.last()
+                    // Titles are usually short and don't end with sentence punctuation or numbers
+                    if (lastLine.length < 85 && !lastLine.endsWith(".") && !lastLine.endsWith(";") && !lastLine.matches(Regex(".*\\d+$"))) {
+                        lastLine
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                }
+                
+                val prefix = when(actCode) {
+                    "PFMR" -> "Regulation"
+                    "PFM" -> "Section"
+                    "IAA" -> "Section"
+                    "LGA" -> "Section"
+                    "PPA" -> "Section"
+                    else -> "Section"
+                }
+
+                val formattedText = if (title.isNotEmpty()) {
+                    "$prefix $sectionNum - $title:\n$sectionBody"
+                } else {
+                    "$prefix $sectionNum:\n$sectionBody"
+                }
+                
+                sections["${actCode}_$sectionNum"] = formattedText
+            }
+        }
+        return sections
+    }
+
+    @Test
+    fun mergeLawText() {
+        val assetsDir = File("../app/src/main/assets").takeIf { it.exists() } ?: File("app/src/main/assets")
+        val lawDetailsFile = File(assetsDir, "law_details.json")
+        
+        if (!lawDetailsFile.exists()) {
+            println("law_details.json not found at ${lawDetailsFile.absolutePath}")
+            return
+        }
+
+        val gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
+        val type = object : TypeToken<MutableMap<String, String>>() {}.type
+        val lawDetails: MutableMap<String, String> = gson.fromJson(lawDetailsFile.readText(), type)
+
+        val extractedFiles = listOf(
+            "extracted_IAA.json",
+            "extracted_LGA.json",
+            "extracted_PFM.json",
+            "extracted_PPA.json"
+        )
+
+        var mergedCount = 0
+        var replacedCount = 0
+
+        extractedFiles.forEach { fileName ->
+            val file = File(fileName)
+            if (file.exists()) {
+                val extractedData: Map<String, String> = gson.fromJson(file.readText(), type)
+                extractedData.forEach { (key, fullText) ->
+                    val existing = lawDetails[key]
+                    if (existing == null) {
+                        lawDetails[key] = fullText
+                        mergedCount++
+                    } else if (fullText.length > existing.length + 10 || existing.lines().size < 2) {
+                        // Replace if new text is significantly longer or existing is likely just a title
+                        lawDetails[key] = fullText
+                        replacedCount++
+                    }
+                }
+            } else {
+                println("Extracted file $fileName not found. Run extractLawTextFromPdf first.")
+            }
+        }
+
+        // Final cleanup of the whole map
+        lawDetails.keys.forEach { key ->
+            lawDetails[key] = cleanSectionText(lawDetails[key] ?: "", key.substringBefore("_"))
+        }
+
+        lawDetailsFile.writeText(gson.toJson(lawDetails))
+        println("Merged $mergedCount new sections and replaced $replacedCount existing sections.")
+        println("Updated law_details.json at ${lawDetailsFile.absolutePath}")
+    }
+
+    private fun cleanSectionText(text: String, actCode: String): String {
+        var cleaned = text
+        
+        // Remove specific Act footers/headers and OCR artifacts
+        val patternsToRemove = listOf(
+            "Internal Audit Agency Act, 2003 Act 658",
+            "Internal Audit Agency Act, 2003",
+            "Internal Audi gency Act, 2003",
+            "Act 658",
+            "Public Financial Management Act, 2016",
+            "PUBLIC FINANCIAL MANAGEMENT ACT, 2016",
+            "Act 921",
+            "Local Governance Act, 2016",
+            "LOCALLoc Gal OGVovEerRnNanAceN ACcEt, 2A0C16T, 2016 Act 936",
+            "Act 936",
+            "Public Procurement Act, 2003",
+            "Act 663 Public Procurement Act, 2003",
+            "Act 663",
+            "Public Procurement (Amendment) Act, 2016",
+            "Act 914",
+            "GPCL, ASSEMBLY PRESS, ACCRA",
+            "GPCL/A656/1,500/08/2016",
+            "Website: www.ghpublishingcompany.co7m",
+            "Website: www.ghpublishingcompany.com",
+            "E-mail: info@ghpublishingcompany.com",
+            "Date of Gazette notification: 26th August, 2016"
+        )
+        
+        for (pattern in patternsToRemove) {
+            cleaned = cleaned.replace(Regex("(?i)" + Regex.escape(pattern)), "")
+        }
+        
+        // Remove running headers
+        cleaned = cleaned.replace(Regex("(?i)LOCAL GOVERNANCE ACT, 2016"), "")
+        cleaned = cleaned.replace(Regex("(?i)PUBLIC PROCUREMENT ACT, 2003"), "")
+        cleaned = cleaned.replace(Regex("(?i)PUBLIC FINANCIAL MANAGEMENT ACT, 2016"), "")
+        cleaned = cleaned.replace(Regex("(?i)INTERNAL AUDIT AGENCY ACT, 2003"), "")
+        
+        // Remove lines that are just numbers (page numbers)
+        // Usually these are standalone numbers like " 71 ", " 72 ", etc.
+        cleaned = cleaned.replace(Regex("(?m)^\\s*\\d+\\s*$"), "")
+        // Also remove numbers within text if they look like page artifacts (e.g., " 71 " surrounded by spaces)
+        cleaned = cleaned.replace(Regex("\\s+\\d{1,3}\\s+"), " ")
+
+        // Clean up common OCR artifacts like "71 (i)", "72 (ii)" where the number is a page artifact
+        cleaned = cleaned.replace(Regex("\\b\\d{2,3}\\s+\\("), "(")
+
+        // Final formatting: remove multiple spaces and trim
+        return cleaned.replace(Regex("\\s+"), " ").trim()
+    }
 }
+
 

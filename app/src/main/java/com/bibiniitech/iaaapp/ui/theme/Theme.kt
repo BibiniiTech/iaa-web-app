@@ -59,6 +59,7 @@ private val LightColorScheme = lightColorScheme(
 )
 annotation class ThemePreviews
 
+@Suppress("ObsoleteSdkInt")
 @Composable
 fun IAAAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

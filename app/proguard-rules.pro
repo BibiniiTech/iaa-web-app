@@ -1,21 +1,45 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Preserve data classes used with GSON and Firebase
+-keepclassmembers class com.bibiniitech.iaaapp.UserProfile { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.Seminar { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.ContactConfig { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.WelcomeConfig { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.NoticeConfig { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.DbDocument { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.CloudConfig { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.SubmissionRecord { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.BrevoEmailRequest { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.BrevoPerson { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.BrevoAttachment { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.ui.screens.SubmissionDeadline { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.ui.screens.AuditFinding { *; }
+-keepclassmembers class com.bibiniitech.iaaapp.ui.screens.PFMSection { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# General GSON rules
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.stream.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Security Hardening: Obfuscate and prevent tampering with SecurityUtils
+-keep class com.bibiniitech.iaaapp.SecurityUtils {
+    public *;
+}
+# We don't use -keep for methods to allow R8 to rename them,
+# but we want to ensure the class exists if we reflectively check it (rarely).
+# Actually, standard obfuscation is better. I'll just leave it to default R8 behavior
+# which is already strong if isMinifyEnabled is true.
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Prevent DexGuard-like tools or simple static analysis from finding these strings easily
+-repackageclasses ''
+-allowaccessmodification
+
+# JavaMail (javax.mail) rules for R8/ProGuard
+-keep class javax.mail.** { *; }
+-keep class com.sun.mail.** { *; }
+-keep class activation.** { *; }
+-dontwarn javax.mail.**
+-dontwarn com.sun.mail.**
+-dontwarn activation.**
+
+
+

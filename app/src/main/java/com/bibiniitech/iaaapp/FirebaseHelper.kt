@@ -4,8 +4,14 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.Keep
 import com.bibiniitech.iaaapp.ui.screens.SubmissionDeadline
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -24,6 +30,16 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
+
+@Keep
+sealed class AuthResult {
+    data object Success : AuthResult()
+    data class Error(
+        val message: String,
+        val isRateLimited: Boolean = false,
+        val isNetworkOrClockError: Boolean = false
+    ) : AuthResult()
+}
 
 @Keep
 data class SubmissionRecord(
@@ -211,6 +227,9 @@ object FirebaseHelper {
     private val _authState = MutableStateFlow<UserProfile?>(null)
     val authState: StateFlow<UserProfile?> = _authState.asStateFlow()
 
+    private val _isAuthInitialized = MutableStateFlow(false)
+    val isAuthInitialized: StateFlow<Boolean> = _isAuthInitialized.asStateFlow()
+
     // In-memory caching layers
     private var cachedUserProfile: UserProfile? = null
     private var cachedWelcome: WelcomeConfig? = null
@@ -236,6 +255,15 @@ object FirebaseHelper {
         // Automatically check if Firebase is operational, otherwise default to Mock
         isMockMode = (auth == null || db == null || storage == null)
 
+        val initialUser = auth?.currentUser
+        if (initialUser != null) {
+            _authState.value = UserProfile(
+                uid = initialUser.uid,
+                email = initialUser.email ?: "",
+                firstName = initialUser.displayName?.split(" ")?.firstOrNull() ?: "User"
+            )
+        }
+
         // Auth state listener for Firebase
         auth?.addAuthStateListener { firebaseAuth: FirebaseAuth ->
             CoroutineScope(Dispatchers.IO).launch {
@@ -248,12 +276,14 @@ object FirebaseHelper {
                     null
                 }
                 _authState.value = user
+                _isAuthInitialized.value = true
             }
         }
 
         // If in Mock Mode, use mockCurrentUser
         if (isMockMode) {
             _authState.value = mockCurrentUser
+            _isAuthInitialized.value = true
         }
 
     }
@@ -379,67 +409,142 @@ object FirebaseHelper {
         }
     }
 
-    suspend fun signIn(email: String, password: String): Boolean {
+    fun parseAuthException(e: Exception): AuthResult.Error {
+        android.util.Log.e("FirebaseHelper", "Auth exception: ${e.javaClass.simpleName} - ${e.message}", e)
+        return when (e) {
+            is FirebaseTooManyRequestsException -> {
+                AuthResult.Error(
+                    message = "Access from this device has been temporarily blocked due to unusual activity or too many failed login attempts. Please wait 15–30 minutes, or reset your password using 'Forgot Password' to restore access immediately.",
+                    isRateLimited = true
+                )
+            }
+            is FirebaseNetworkException -> {
+                AuthResult.Error(
+                    message = "Network connection failed. Please check your internet, verify that your phone's Date & Time is set to 'Automatic', and turn off any VPN or private DNS.",
+                    isNetworkOrClockError = true
+                )
+            }
+            is FirebaseAuthInvalidCredentialsException -> {
+                val code = e.errorCode
+                val msg = if (code == "ERROR_INVALID_EMAIL") {
+                    "The email address format is invalid. Please check for accidental spaces or typos."
+                } else {
+                    "Invalid email address or password. Please double-check your credentials."
+                }
+                AuthResult.Error(message = msg)
+            }
+            is FirebaseAuthInvalidUserException -> {
+                val code = e.errorCode
+                val msg = if (code == "ERROR_USER_DISABLED") {
+                    "This account has been disabled. Please contact the administrator."
+                } else {
+                    "No account found with this email address. Please verify your email or sign up."
+                }
+                AuthResult.Error(message = msg)
+            }
+            is FirebaseAuthUserCollisionException -> {
+                AuthResult.Error(message = "An account with this email address already exists. Please sign in instead.")
+            }
+            is FirebaseAuthException -> {
+                val code = e.errorCode
+                if (code == "ERROR_TOO_MANY_REQUESTS") {
+                    AuthResult.Error(
+                        message = "Access from this device has been temporarily blocked due to too many failed attempts. Please wait 15–30 minutes or reset your password.",
+                        isRateLimited = true
+                    )
+                } else {
+                    AuthResult.Error(message = e.localizedMessage ?: "Authentication failed (${e.errorCode}).")
+                }
+            }
+            else -> {
+                val message = e.localizedMessage ?: e.message ?: "An unexpected authentication error occurred."
+                if (message.contains("TOO_MANY_ATTEMPTS", ignoreCase = true) || message.contains("blocked", ignoreCase = true)) {
+                    AuthResult.Error(
+                        message = "Access from this device is temporarily restricted. Please wait 15–30 minutes before trying again, or use 'Forgot Password'.",
+                        isRateLimited = true
+                    )
+                } else if (message.contains("network", ignoreCase = true) || message.contains("SSL", ignoreCase = true) || message.contains("timestamp", ignoreCase = true)) {
+                    AuthResult.Error(
+                        message = "Connection / Security error. Please verify your phone's Date & Time is set to Automatic and check your internet connection.",
+                        isNetworkOrClockError = true
+                    )
+                } else {
+                    AuthResult.Error(message = message)
+                }
+            }
+        }
+    }
+
+    suspend fun signIn(email: String, password: String): AuthResult {
+        val normalizedEmail = email.trim().lowercase()
+        val normalizedPassword = password.trim()
         if (isMockMode) {
-            val user = if (email.lowercase().startsWith("admin")) {
-                UserProfile("mock_admin_123", "Admin", "User", email, "IAA Head Office", "0000000000", "admin", isProfileComplete = true)
+            val user = if (normalizedEmail.startsWith("admin")) {
+                UserProfile("mock_admin_123", "Admin", "User", normalizedEmail, "IAA Head Office", "0000000000", "admin", isProfileComplete = true)
             } else {
-                UserProfile("mock_user_123", "Regular", "User", email, "Ministry of Finance", "0000000000", "user", isProfileComplete = true)
+                UserProfile("mock_user_123", "Regular", "User", normalizedEmail, "Ministry of Finance", "0000000000", "user", isProfileComplete = true)
             }
             mockCurrentUser = user
             _authState.value = user
-            return true
+            return AuthResult.Success
         }
+        val currentAuth = auth ?: return AuthResult.Error("Authentication service is unavailable. Please restart the app.")
         return try {
-            auth?.signInWithEmailAndPassword(email, password)?.await()
-            true
-        } catch (_: Exception) {
-            false
+            currentAuth.signInWithEmailAndPassword(normalizedEmail, normalizedPassword).await()
+            AuthResult.Success
+        } catch (e: Exception) {
+            parseAuthException(e)
         }
     }
 
-    suspend fun sendPasswordResetEmail(email: String): Boolean {
-        if (isMockMode) return true
+    suspend fun sendPasswordResetEmail(email: String): AuthResult {
+        val normalizedEmail = email.trim().lowercase()
+        if (isMockMode) return AuthResult.Success
+        val currentAuth = auth ?: return AuthResult.Error("Authentication service is unavailable.")
         return try {
-            auth?.sendPasswordResetEmail(email)?.await()
-            true
-        } catch (_: Exception) {
-            false
+            currentAuth.sendPasswordResetEmail(normalizedEmail).await()
+            AuthResult.Success
+        } catch (e: Exception) {
+            parseAuthException(e)
         }
     }
 
-    suspend fun signUp(email: String, password: String, firstName: String, surname: String, institution: String, phone: String): Boolean {
+    suspend fun signUp(email: String, password: String, firstName: String, surname: String, institution: String, phone: String): AuthResult {
+        val normalizedEmail = email.trim().lowercase()
+        val normalizedPassword = password.trim()
         if (isMockMode) {
-            val role = if (email.lowercase().contains("admin")) "admin" else "user"
-            val user = UserProfile("mock_user_" + System.currentTimeMillis(), firstName, surname, email, institution, phone, role, isProfileComplete = true)
+            val role = if (normalizedEmail.contains("admin")) "admin" else "user"
+            val user = UserProfile("mock_user_" + System.currentTimeMillis(), firstName.trim(), surname.trim(), normalizedEmail, institution.trim(), phone.trim(), role, isProfileComplete = true)
             mockCurrentUser = user
             _authState.value = user
-            return true
+            return AuthResult.Success
         }
+        val currentAuth = auth ?: return AuthResult.Error("Authentication service is unavailable.")
+        val currentDb = db ?: return AuthResult.Error("Database service is unavailable.")
         return try {
-            val result = auth?.createUserWithEmailAndPassword(email, password)?.await()
+            val result = currentAuth.createUserWithEmailAndPassword(normalizedEmail, normalizedPassword).await()
             val firebaseUser = result?.user
             if (firebaseUser != null) {
                 // Save user profile to Firestore with profile completion flag set
                 val profile = UserProfile(
                     uid = firebaseUser.uid,
-                    firstName = firstName,
-                    surname = surname,
-                    email = email,
-                    institution = institution,
-                    phone = phone,
+                    firstName = firstName.trim(),
+                    surname = surname.trim(),
+                    email = normalizedEmail,
+                    institution = institution.trim(),
+                    phone = phone.trim(),
                     role = "user", // Defaults to normal user. Admin status set manually in Firebase Console
                     isProfileComplete = true
                 )
-                db?.collection("users")?.document(firebaseUser.uid)?.set(profile)?.await()
+                currentDb.collection("users").document(firebaseUser.uid).set(profile).await()
                 cachedUserProfile = profile
                 _authState.value = profile
-                true
+                AuthResult.Success
             } else {
-                false
+                AuthResult.Error("Failed to create user account.")
             }
-        } catch (_: Exception) {
-            false
+        } catch (e: Exception) {
+            parseAuthException(e)
         }
     }
 
@@ -503,10 +608,10 @@ object FirebaseHelper {
         return profile
     }
 
-    suspend fun signInWithGoogleCredential(idToken: String): Boolean {
-        if (isMockMode) return true
-        val currentAuth = auth ?: return false
-        val currentDb = db ?: return false
+    suspend fun signInWithGoogleCredential(idToken: String): AuthResult {
+        if (isMockMode) return AuthResult.Success
+        val currentAuth = auth ?: return AuthResult.Error("Authentication service is unavailable.")
+        val currentDb = db ?: return AuthResult.Error("Database service is unavailable.")
         return try {
             val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
             val result = currentAuth.signInWithCredential(credential).await()
@@ -521,7 +626,7 @@ object FirebaseHelper {
                         uid = firebaseUser.uid,
                         firstName = firstName,
                         surname = surname,
-                        email = firebaseUser.email ?: "",
+                        email = (firebaseUser.email ?: "").lowercase().trim(),
                         institution = "",
                         phone = "",
                         role = "user",
@@ -531,13 +636,12 @@ object FirebaseHelper {
                     cachedUserProfile = profile
                     _authState.value = profile
                 }
-                true
+                AuthResult.Success
             } else {
-                false
+                AuthResult.Error("Google sign-in succeeded but failed to retrieve user profile.")
             }
         } catch (e: Exception) {
-            android.util.Log.e("FirebaseHelper", "Google Sign-In failed", e)
-            false
+            parseAuthException(e)
         }
     }
 

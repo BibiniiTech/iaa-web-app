@@ -13,3 +13,40 @@
 .externalNativeBuild
 .cxx
 local.properties
+.kotlin/
+
+# Secrets & Keys
+*Key*.txt
+*key*.txt
+*.keystore
+*.jks
+credentials.json
+
+# Build Binaries & Releases
+app/release/
+*.aab
+*.apk
+release/
+Signed APKs/
+
+# Generated Extraction Text & Temp Files
+*_extracted_text.txt
+*_extracted_test.txt
+*_positions.txt
+all_criteria.txt
+cleaned_criteria.txt
+debug_parser.txt
+app_parse_stats.txt
+law_parse_stats.txt
+pfmr_debug.txt
+non_specific_criteria.txt
+Inspect_PDFs_output.txt
+missing_*.txt
+criteria_mapping_debug.txt
+all_law_keys*.txt
+all_referenced_criteria.txt
+
+# Scratch PDFs and JSON extraction dumps
+/*.pdf
+extracted_*.json
+app/extracted_*.json

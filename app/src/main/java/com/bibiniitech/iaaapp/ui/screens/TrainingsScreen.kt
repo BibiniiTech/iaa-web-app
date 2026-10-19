@@ -3,6 +3,7 @@ package com.bibiniitech.iaaapp.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -172,7 +173,7 @@ fun TrainingsScreen() {
 
 private fun openRemoteFile(context: Context, url: String) {
     try {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         context.startActivity(intent)
     } catch (e: Exception) {
         Toast.makeText(context, "Error opening link: ${e.message}", Toast.LENGTH_SHORT).show()

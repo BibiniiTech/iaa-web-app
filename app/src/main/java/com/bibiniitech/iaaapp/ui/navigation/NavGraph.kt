@@ -197,7 +197,9 @@ fun NavGraph(
                     navController.navigateToScreenSafe(Screen.Login)
                 },
                 onSignUpSuccess = {
-                    navController.navigateToScreenSafe(Screen.Login)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                    }
                 }
             )
         }
