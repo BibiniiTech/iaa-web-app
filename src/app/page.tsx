@@ -206,25 +206,25 @@ export default function Home() {
         <section className={styles.quickAccess}>
           <h3 className={styles.sectionTitle}>Quick Access</h3>
           <div className={styles.quickAccessGrid}>
-            <div className={styles.quickCard} onClick={() => router.push('/submissions')}>
+            <div className={styles.quickCard} onClick={() => router.push('/submissions?type=quarterly')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15.01l1.41 1.41L11 14.84V19h2v-4.16l1.59 1.59L16 15.01 12.01 11 8 15.01z"/>
               </svg>
               <span>Submit Quarterly Report</span>
             </div>
-            <div className={styles.quickCard} onClick={() => router.push('/submissions')}>
+            <div className={styles.quickCard} onClick={() => router.push('/submissions?type=ccc')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
               </svg>
               <span>Submit CCC Review Report</span>
             </div>
-            <div className={styles.quickCard} onClick={() => router.push('/resources')}>
+            <div className={styles.quickCard} onClick={() => router.push('/resources?expand=legislations')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M5.22 8.57l3.53 3.53 4.24-4.24L9.46 4.33a1.5 1.5 0 0 0-2.12 0L5.22 6.45a1.5 1.5 0 0 0 0 2.12zM16.54 11l-4.24 4.24 3.53 3.53a1.5 1.5 0 0 0 2.12 0l2.12-2.12a1.5 1.5 0 0 0 0-2.12L16.54 11zM10.5 15l-1.41-1.41L2.12 20.5a1 1 0 0 0 0 1.41l.71.71a1 1 0 0 0 1.41 0L10.5 15z"/>
               </svg>
               <span>Legislation</span>
             </div>
-            <div className={styles.quickCard} onClick={() => router.push('/resources')}>
+            <div className={styles.quickCard} onClick={() => router.push('/resources?expand=templates')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
               </svg>

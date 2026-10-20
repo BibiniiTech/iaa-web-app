@@ -5,12 +5,12 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getCachedConfigDoc } from '@/lib/firebase-cache';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
-import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
+import { MMDA_DATA, REGIONS, RCC_DATA } from '@/data/mmda_data';
 import styles from './defaulters.module.css';
 
 export interface MasterInstitution {
   name: string;
-  type: 'MDA' | 'SOE' | 'RCC/MMDA';
+  type: 'MDA' | 'SOE' | 'RCC' | 'MMDA';
   region?: string;
 }
 
@@ -302,6 +302,19 @@ export default function DefaultersPage() {
       }
     }
 
+    // RCCs
+    for (const region of REGIONS) {
+      const rccName = RCC_DATA[region];
+      if (rccName) {
+        const clean = rccName.trim();
+        const norm = normalizeText(clean);
+        if (clean && !seen.has(norm)) {
+          seen.add(norm);
+          list.push({ name: clean, type: 'RCC', region });
+        }
+      }
+    }
+
     // MMDAs
     for (const region of REGIONS) {
       const mmdaList = MMDA_DATA[region] || [];
@@ -310,7 +323,7 @@ export default function DefaultersPage() {
         const norm = normalizeText(clean);
         if (clean && !seen.has(norm)) {
           seen.add(norm);
-          list.push({ name: clean, type: 'RCC/MMDA', region });
+          list.push({ name: clean, type: 'MMDA', region });
         }
       }
     }
@@ -816,7 +829,8 @@ export default function DefaultersPage() {
                                       <option value="ALL">All Types</option>
                                       <option value="MDA">MDAs Only</option>
                                       <option value="SOE">SOEs Only</option>
-                                      <option value="RCC/MMDA">RCCs / MMDAs Only</option>
+                                      <option value="RCC">RCCs Only</option>
+                                      <option value="MMDA">MMDAs Only</option>
                                     </select>
 
                                     {typeFilter !== 'MDA' && typeFilter !== 'SOE' && (
@@ -885,6 +899,8 @@ export default function DefaultersPage() {
                                                       ? styles.typeMda
                                                       : item.type === 'SOE'
                                                       ? styles.typeSoe
+                                                      : item.type === 'RCC'
+                                                      ? styles.typeRcc
                                                       : styles.typeMmda
                                                   }`}
                                                 >

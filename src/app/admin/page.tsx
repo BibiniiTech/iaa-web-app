@@ -1550,7 +1550,9 @@ function SubmissionsMonitorTab({
         <button className={styles.addBtn} type="button" onClick={load}>Refresh</button>
       </div>
       <SubmissionsMonitorCard title="MDA Submissions" institutionType="MDA" submissions={submissions} />
-      <SubmissionsMonitorCard title="RCC / MMDA Submissions" institutionType="RCC/MMDA" submissions={submissions} showRegionFilter />
+      <SubmissionsMonitorCard title="SOE Submissions" institutionType="SOE" submissions={submissions} />
+      <SubmissionsMonitorCard title="RCC Submissions" institutionType="RCC" submissions={submissions} showRegionFilter />
+      <SubmissionsMonitorCard title="MMDA Submissions" institutionType="MMDA" submissions={submissions} showRegionFilter />
     </div>
   );
 }
@@ -1571,8 +1573,13 @@ function SubmissionsMonitorCard({
 
   const filtered = useMemo(() => {
     return submissions.filter((submission) => {
+      const matchesType =
+        submission.institutionType === institutionType ||
+        (institutionType === 'RCC' && (submission.institutionType === 'RCC/MMDA' && (submission.institution?.includes('RCC') || submission.institution?.includes('Regional Coordinating')))) ||
+        (institutionType === 'MMDA' && (submission.institutionType === 'RCC/MMDA' && !submission.institution?.includes('RCC') && !submission.institution?.includes('Regional Coordinating')));
+
       return (
-        submission.institutionType === institutionType &&
+        matchesType &&
         matchesReportFilter(submission, selectedReportType) &&
         (!showRegionFilter || selectedRegion === 'All Regions' || submission.region === selectedRegion)
       );

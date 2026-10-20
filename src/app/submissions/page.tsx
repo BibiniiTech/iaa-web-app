@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase';
 import { getCachedConfigDoc, getCachedUserProfile } from '@/lib/firebase-cache';
 import styles from './submissions.module.css';
 import FileUpload from '@/components/submissions/FileUpload';
-import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
+import { REGIONS, MMDA_DATA, RCC_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 
 const SUBMISSION_DISABLED_MESSAGE = 'Please use your normal submissions channel until the Agency approves the use of this app';
@@ -142,11 +142,18 @@ export default function SubmissionsPage() {
 
           // Pre-fill institution data from profile
           if (userData.institutionType) {
-            const type = userData.institutionType === 'MDA' ? 'MDA' : 'RCC/MMDA';
+            const rawType = String(userData.institutionType);
+            const type = (rawType === 'MDA' || rawType === 'SOE' || rawType === 'RCC' || rawType === 'MMDA')
+              ? rawType
+              : (rawType.includes('RCC') ? 'RCC' : 'MMDA');
             setInstitutionType(type);
 
-            if (type === 'MDA') {
+            if (type === 'MDA' || type === 'SOE') {
               setInstitutionName(String(userData.institutionName || userData.institution || ''));
+            } else if (type === 'RCC') {
+              const reg = String(userData.region || '');
+              setRegion(reg);
+              setMmda(String(userData.institution || RCC_DATA[reg] || ''));
             } else {
               setRegion(String(userData.region || ''));
               const profInstitution = String(userData.institution || '');
@@ -218,6 +225,16 @@ export default function SubmissionsPage() {
     }
     setActivePortal(portal);
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const typeParam = params.get('type') as SubmissionType;
+      if (typeParam && ['quarterly', 'annual', 'ccc', 'soi', 'other'].includes(typeParam)) {
+        openPortal(typeParam);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (activePortal) {
@@ -295,19 +312,6 @@ export default function SubmissionsPage() {
           </div>
         )}
 
-        <div className={styles.defaultersBannerCard} onClick={() => router.push('/defaulters')}>
-          <div className={styles.defaultersBannerIcon}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm1 14h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-            </svg>
-          </div>
-          <div className={styles.defaultersBannerText}>
-            <h4>Defaulters' List</h4>
-            <p>View institutions that made late submissions or have not submitted required reports.</p>
-          </div>
-          <span className={styles.defaultersBannerArrow}>→</span>
-        </div>
-
         {toastMessage && (
           <div className={styles.toastContainer} role="alert" aria-live="polite">
             <div className={styles.toast}>
@@ -352,7 +356,8 @@ export default function SubmissionsPage() {
               className={styles.selectField}
               value={institutionType}
               onChange={(e) => {
-                setInstitutionType(e.target.value);
+                const nextType = e.target.value;
+                setInstitutionType(nextType);
                 setInstitutionName('');
                 setRegion('');
                 setMmda('');
@@ -360,7 +365,8 @@ export default function SubmissionsPage() {
             >
               <option value="MDA">MDA</option>
               <option value="SOE">SOE</option>
-              <option value="RCC/MMDA">RCC/MMDA</option>
+              <option value="RCC">RCC</option>
+              <option value="MMDA">MMDA</option>
             </select>
           </div>
 
@@ -379,6 +385,23 @@ export default function SubmissionsPage() {
                 ))}
               </select>
             </div>
+          ) : institutionType === 'RCC' ? (
+            <div className={styles.inputGroup}>
+              <label>Region</label>
+              <select
+                className={styles.selectField}
+                value={region}
+                onChange={(e) => {
+                  const reg = e.target.value;
+                  setRegion(reg);
+                  setMmda(RCC_DATA[reg] || '');
+                }}
+                required
+              >
+                <option value="">Select Region</option>
+                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
           ) : (
             <>
               <div className={styles.inputGroup}>
@@ -395,14 +418,14 @@ export default function SubmissionsPage() {
               </div>
               {region && (
                 <div className={styles.inputGroup}>
-                  <label>Institution (RCC/MMDA)</label>
+                  <label>Institution (MMDA)</label>
                   <select
                     className={styles.selectField}
                     value={mmda}
                     onChange={(e) => setMmda(e.target.value)}
                     required
                   >
-                    <option value="">Select Institution</option>
+                    <option value="">Select MMDA</option>
                     {MMDA_DATA[region]?.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>

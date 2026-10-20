@@ -14,12 +14,32 @@ export const REGIONS = [
   "Upper West",
   "Volta",
   "Western",
-  "Western North",
+  "Western North"
 ];
+
+export const RCC_DATA: Record<string, string> = {
+  "Ahafo": "Ahafo RCC",
+  "Ashanti": "Ashanti RCC",
+  "Bono": "Bono RCC",
+  "Bono East": "Bono East RCC",
+  "Central": "Central RCC",
+  "Eastern": "Eastern RCC",
+  "Greater Accra": "Greater Accra RCC",
+  "North East": "North East RCC",
+  "Northern": "Northern RCC",
+  "Oti": "Oti RCC",
+  "Savannah": "Savannah RCC",
+  "Upper East": "Upper East RCC",
+  "Upper West": "Upper West RCC",
+  "Volta": "Volta RCC",
+  "Western": "Western RCC",
+  "Western North": "Western North RCC"
+};
+
+export const RCC_LIST: string[] = Object.values(RCC_DATA);
 
 export const MMDA_DATA: Record<string, string[]> = {
   "Ahafo": [
-    "Ahafo RCC",
     "Asunafo North Municipal",
     "Asunafo South District",
     "Asutifi North District",
@@ -43,7 +63,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Asante Akim Central Municipal",
     "Asante Akim North District",
     "Asante Akim South Municipal",
-    "Ashanti RCC",
     "Asokore Mampong Municipal",
     "Asokwa Municipal",
     "Atwima Kwanwoma District",
@@ -62,8 +81,8 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Mampong Municipal",
     "Obuasi East District",
     "Obuasi Municipal",
-    "Offinso North District",
     "Offinso Municipal",
+    "Offinso North District",
     "Oforikrom Municipal",
     "Old Tafo Municipal",
     "Sekyere Afram Plains District",
@@ -77,7 +96,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Banda District",
     "Berekum East Municipal",
     "Berekum West District",
-    "Bono RCC",
     "Dormaa Central Municipal",
     "Dormaa East District",
     "Dormaa West District",
@@ -90,7 +108,6 @@ export const MMDA_DATA: Record<string, string[]> = {
   ],
   "Bono East": [
     "Atebubu-Amantin Municipal",
-    "Bono East RCC",
     "Kintampo North Municipal",
     "Kintampo South District",
     "Nkoranza North District",
@@ -99,8 +116,8 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Pru West District",
     "Sene East District",
     "Sene West District",
-    "Techiman North District",
-    "Techiman Municipal"
+    "Techiman Municipal",
+    "Techiman North District"
   ],
   "Central": [
     "Abura/Asebu/Kwamankese District",
@@ -108,13 +125,12 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Agona West Municipal",
     "Ajumako/Enyan/Essiam District",
     "Asikuma-Odoben-Brakwa District",
+    "Assin Central Municipal",
     "Assin North District",
     "Assin South District",
-    "Assin Central Municipal",
     "Awutu Senya East Municipal",
     "Awutu Senya West District",
     "Cape Coast Metropolitan",
-    "Central RCC",
     "Effutu Municipal",
     "Ekumfi District",
     "Gomoa Central District",
@@ -143,7 +159,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Birim North District",
     "Birim South District",
     "Denkyembuor District",
-    "Eastern RCC",
     "Fanteakwa North District",
     "Fanteakwa South District",
     "Kwaebibirem Municipal",
@@ -181,7 +196,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Ga North Municipal",
     "Ga South Municipal",
     "Ga West Municipal",
-    "Greater Accra RCC",
     "Korle Klottey Municipal",
     "Kpone Katamanso Municipal",
     "Krowor Municipal",
@@ -200,7 +214,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Chereponi District",
     "East Mamprusi Municipal",
     "Mamprugu-Moagduri District",
-    "North East RCC",
     "West Mamprusi Municipal",
     "Yunyoo-Nasuan District"
   ],
@@ -210,10 +223,9 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Kpandai District",
     "Kumbungu District",
     "Mion District",
+    "Nanton District",
     "Nanumba North Municipal",
     "Nanumba South District",
-    "Nanton District",
-    "Northern RCC",
     "Saboba District",
     "Sagnerigu Municipal",
     "Savelugu Municipal",
@@ -232,16 +244,14 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Krachi Nchumuru District",
     "Krachi West Municipal",
     "Nkwanta North District",
-    "Nkwanta South Municipal",
-    "Oti RCC"
+    "Nkwanta South Municipal"
   ],
   "Savannah": [
     "Bole District",
     "Central Gonja District",
     "East Gonja Municipal",
-    "North Gonja District",
     "North East Gonja District",
-    "Savannah RCC",
+    "North Gonja District",
     "Sawla-Tuna-Kalba District",
     "West Gonja Municipal"
   ],
@@ -260,8 +270,7 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Nabdam District",
     "Pusiga District",
     "Talensi District",
-    "Tempane District",
-    "Upper East RCC"
+    "Tempane District"
   ],
   "Upper West": [
     "Daffiama-Bussie-Issa District",
@@ -272,7 +281,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Nandom Municipal",
     "Sissala East Municipal",
     "Sissala West District",
-    "Upper West RCC",
     "Wa East District",
     "Wa Municipal",
     "Wa West District"
@@ -295,8 +303,7 @@ export const MMDA_DATA: Record<string, string[]> = {
     "North Dayi District",
     "North Tongu District",
     "South Dayi District",
-    "South Tongu Municipal",
-    "Volta RCC"
+    "South Tongu Municipal"
   ],
   "Western": [
     "Ahanta West Municipal",
@@ -312,8 +319,7 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Shama District",
     "Tarkwa Nsuaem Municipal",
     "Wassa Amenfi East Municipal",
-    "Wassa East District",
-    "Western RCC"
+    "Wassa East District"
   ],
   "Western North": [
     "Aowin Municipal",
@@ -324,7 +330,6 @@ export const MMDA_DATA: Record<string, string[]> = {
     "Juaboso District",
     "Sefwi Akontombra District",
     "Sefwi Wiawso Municipal",
-    "Suaman District",
-    "Western North RCC"
-  ],
+    "Suaman District"
+  ]
 };

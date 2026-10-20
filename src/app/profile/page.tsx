@@ -11,7 +11,7 @@ import {
   invalidateAllCaches,
 } from '@/lib/firebase-cache';
 import styles from './profile.module.css';
-import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
+import { REGIONS, MMDA_DATA, RCC_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 
 type UserProfile = {
@@ -261,9 +261,9 @@ export default function ProfilePage() {
                         onChange={(e) => setInstitution(e.target.value)}
                       >
                         <option value="">Select Institution</option>
-                        {MMDA_DATA[region]
-                          ?.filter(m => institutionType === 'MMDA' ? !m.endsWith(' RCC') : m.endsWith(' RCC'))
-                          .map(m => <option key={m} value={m}>{m}</option>)
+                        {institutionType === 'RCC'
+                          ? [RCC_DATA[region]].filter(Boolean).map(m => <option key={m} value={m}>{m}</option>)
+                          : MMDA_DATA[region]?.map(m => <option key={m} value={m}>{m}</option>)
                         }
                       </select>
                     </div>
