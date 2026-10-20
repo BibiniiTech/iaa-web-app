@@ -3,21 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { addDoc, collection } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, db, storage } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { getCachedConfigDoc, getCachedUserProfile } from '@/lib/firebase-cache';
 import styles from './submissions.module.css';
 import FileUpload from '@/components/submissions/FileUpload';
 import { REGIONS, MMDA_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
-import {
-  getMdaTo,
-  getMdaCc,
-  getMmdaTo,
-  getRegionCc,
-  getMmdaInstitutionCc
-} from '@/lib/email-utils';
+
+const SUBMISSION_DISABLED_MESSAGE = 'Please use your normal submissions channel until the Agency approves the use of this app';
 
 const SubmissionIcons = {
   Quarterly: () => (
@@ -85,8 +78,8 @@ export default function SubmissionsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [activePortal, setActivePortal] = useState<SubmissionType>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [status] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form State
   const [institutionType, setInstitutionType] = useState('MDA');
@@ -105,6 +98,22 @@ export default function SubmissionsPage() {
   });
 
   const router = useRouter();
+
+  const triggerDisabledToast = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setToastMessage(SUBMISSION_DISABLED_MESSAGE);
+  };
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -217,174 +226,9 @@ export default function SubmissionsPage() {
     }
   }, [institutionType, institutionName, region, mmda, period, quarter, reportType, activePortal]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      setStatus({ type: 'error', message: 'Please sign in before submitting a report.' });
-      return;
-    }
-
-    if (files.length === 0) {
-      setStatus({ type: 'error', message: 'Please attach at least one file.' });
-      return;
-    }
-
-    setSubmitting(true);
-    setStatus(null);
-
-    try {
-      const institution = institutionType === 'MDA' ? institutionName.trim() : mmda.trim();
-      const category = activePortal || 'other';
-
-      // 1. Resolve Recipient Emails exactly like the Android App
-      const toRecipients: string[] = [];
-      const ccRecipients: string[] = [];
-
-      if (institutionType === 'MDA' || institutionType === 'SOE') {
-        toRecipients.push(...await getMdaTo(category));
-        ccRecipients.push(...await getMdaCc(category));
-      } else {
-        toRecipients.push(...await getMmdaTo(category));
-        ccRecipients.push(...await getRegionCc(category, region));
-        // Allow institution-specific CC for all categories to match Android flexibility
-        ccRecipients.push(...await getMmdaInstitutionCc(category, region, institution));
-      }
-
-      // Add the sender to CC so they have a copy of the submission
-      if (senderEmail) {
-        ccRecipients.push(senderEmail);
-      }
-
-      // Deduplicate and normalize emails
-      const uniqueTo = Array.from(new Set(toRecipients.map(e => e.toLowerCase().trim()))).filter(Boolean);
-      const uniqueCc = Array.from(new Set(ccRecipients.map(e => e.toLowerCase().trim())))
-        .filter(e => e && !uniqueTo.includes(e));
-
-      if (uniqueTo.length === 0) {
-        setStatus({ type: 'error', message: 'No recipient emails configured for this category.' });
-        setSubmitting(false);
-        return;
-      }
-
-      // 2. Automatically compress and upload files to Firebase Storage
-      const { compressFileForUpload } = await import('@/lib/compression');
-      const uploadedFileUrls: { name: string, url: string, storagePath: string }[] = [];
-      const timestamp = Date.now();
-      for (const file of files) {
-        const compressedFile = await compressFileForUpload(file);
-        const safeFileName = file.name.replace(/[\\/]/g, '_');
-        const storageName = `${timestamp}_${safeFileName}`;
-        const storagePath = `submissions/${user.uid}/${category}/${storageName}`;
-        const fileRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(fileRef, compressedFile);
-        const url = await getDownloadURL(snapshot.ref);
-        uploadedFileUrls.push({ name: file.name, url, storagePath });
-      }
-
-      // 3. Format Subject and Body text matching the Android App screens
-      let subject = '';
-      let bodyText = '';
-
-      if (category === 'quarterly') {
-        subject = `${quarter} Quarter Internal Audit Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Internal Audit Report for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
-      } else if (category === 'annual') {
-        subject = institutionType === 'MDA' ? `${reportType} for ${institution}` : `${reportType} Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${reportType} for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
-      } else if (category === 'ccc') {
-        subject = `${quarter} Quarter CCC Review Report for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter CCC Review Report for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
-      } else if (category === 'soi') {
-        subject = `${quarter} Quarter Status of Implementation on Audit Reports for ${institution}`;
-        bodyText = `Kindly find attached the submission of the ${quarter} Quarter Status of Implementation on Audit Reports for ${institution}\n\nSent by ${senderName} (${senderEmail})`;
-      } else {
-        // 'other' report submission
-        subject = `${period} from ${institution}`;
-        bodyText = `Kindly find attached the submission of ${period} from ${institution}\n\nSent by ${senderName} (${senderEmail})`;
-      }
-
-      // Convert bodyText to HTML matching EmailSender.kt format
-      const htmlContent = `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
-              <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Submission Notification</h2>
-              <p>${bodyText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>
-              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 0.9em; color: #7f8c8d;">
-                <p>This is an automated message from the IAA Submissions Portal.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      // 4. Log Submission in Firestore matching FirebaseHelper.logSubmission
-      const displayPeriod = (category === 'soi' || category === 'quarterly' || category === 'ccc') ? `${quarter} Quarter` :
-                           (category === 'annual') ? reportType : period;
-
-      const reportName = (category === 'soi') ? `${quarter} Quarter SOI Report` :
-                        (category === 'quarterly') ? `${quarter} Quarter Report` :
-                        (category === 'ccc') ? `${quarter} Quarter CCC Review Report` :
-                        (category === 'annual') ? reportType : period;
-
-      await addDoc(collection(db, 'submissions'), {
-        // Keeping Web Portal properties for backward compatibility
-        userId: user.uid,
-        type: category,
-        period: displayPeriod,
-        files: uploadedFileUrls.map(f => ({ name: f.name, url: f.url })),
-
-        // Android Sync Schema properties
-        category: category,
-        institutionType: institutionType,
-        institution: institution,
-        region: region,
-        senderName: senderName,
-        senderEmail: senderEmail,
-        timestamp: timestamp, // Use the same timestamp as the files
-        fileNames: uploadedFileUrls.map(f => f.storagePath.split('/').pop() || f.name),
-        filePaths: uploadedFileUrls.map(f => f.storagePath),
-        reportName: reportName,
-      });
-
-      // 5. Send using the same Brevo setup (via api endpoint) with auth token
-      const idToken = await user.getIdToken();
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          to: uniqueTo.map((email: string) => ({ email })),
-          cc: uniqueCc.length > 0 ? uniqueCc.map((email: string) => ({ email })) : undefined,
-          subject: subject,
-          htmlContent: htmlContent,
-          attachments: uploadedFileUrls.map(f => ({ url: f.url, name: f.name })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to send email notification');
-      }
-
-      setStatus({ type: 'success', message: 'Report submitted successfully!' });
-      localStorage.removeItem(`draft_${activePortal}`);
-
-      setTimeout(() => {
-        setActivePortal(null);
-        setFiles([]);
-        setStatus(null);
-      }, 3000);
-
-    } catch (error: unknown) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : 'An error occurred during submission.';
-      setStatus({ type: 'error', message });
-    } finally {
-      setSubmitting(false);
-    }
+    triggerDisabledToast();
   };
 
   if (loading) return <div className={styles.container}>Loading...</div>;
@@ -447,6 +291,23 @@ export default function SubmissionsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {toastMessage && (
+          <div className={styles.toastContainer} role="alert" aria-live="polite">
+            <div className={styles.toast}>
+              <span className={styles.toastIcon}>⚠️</span>
+              <span className={styles.toastText}>{toastMessage}</span>
+              <button
+                type="button"
+                className={styles.toastClose}
+                onClick={() => setToastMessage(null)}
+                aria-label="Close notification"
+              >
+                ×
+              </button>
             </div>
           </div>
         )}
@@ -606,15 +467,39 @@ export default function SubmissionsPage() {
 
           <FileUpload files={files} setFiles={setFiles} />
 
+          <div className={styles.submissionNotice}>
+            <span className={styles.noticeIcon}>⚠️</span>
+            <span>Please use your normal submissions channel until the Agency approves the use of this app</span>
+          </div>
+
           <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={submitting}
+            type="button"
+            className={`${styles.submitButton} ${styles.disabledButton}`}
+            onClick={triggerDisabledToast}
+            aria-disabled="true"
+            title="Submissions temporarily disabled"
           >
-            {submitting ? 'Submitting...' : 'Submit Report'}
+            Submit Report
           </button>
         </form>
       </div>
+
+      {toastMessage && (
+        <div className={styles.toastContainer} role="alert" aria-live="polite">
+          <div className={styles.toast}>
+            <span className={styles.toastIcon}>⚠️</span>
+            <span className={styles.toastText}>{toastMessage}</span>
+            <button
+              type="button"
+              className={styles.toastClose}
+              onClick={() => setToastMessage(null)}
+              aria-label="Close notification"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

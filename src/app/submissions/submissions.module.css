@@ -169,13 +169,123 @@
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 2rem;
-  transition: opacity 0.2s;
+  margin-top: 1rem;
+  transition: opacity 0.2s, background-color 0.2s;
 }
 
 .submitButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.disabledButton {
+  background: #64748b !important;
+  color: #f1f5f9 !important;
+  cursor: not-allowed !important;
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.disabledButton:hover {
+  background: #475569 !important;
+  opacity: 0.95;
+}
+
+.submissionNotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(221, 107, 32, 0.12);
+  border: 1px solid rgba(221, 107, 32, 0.35);
+  color: #c05621;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .submissionNotice {
+    background: rgba(221, 107, 32, 0.2);
+    border-color: rgba(221, 107, 32, 0.5);
+    color: #fbd38d;
+  }
+}
+
+.noticeIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Floating Toast Notification */
+.toastContainer {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: min(560px, 92vw);
+  width: max-content;
+  pointer-events: none;
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1B365D;
+  color: #FFFFFF;
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.toastIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.toastText {
+  flex: 1;
+}
+
+.toastClose {
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  opacity: 0.75;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 6px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.toastClose:hover {
+  opacity: 1;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .error {
