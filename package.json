@@ -21,7 +21,9 @@
     "docx": "^9.13.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "typescript": "^5"
+    "javascript-obfuscator": "^5.9.0",
+    "typescript": "^5",
+    "webpack-obfuscator": "^3.6.1"
   },
   "allowScripts": {
     "@firebase/util": true,

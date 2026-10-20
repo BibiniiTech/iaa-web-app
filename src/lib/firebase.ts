@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getRemoteConfig } from "firebase/remote-config";
+import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -52,4 +53,20 @@ if (remoteConfig) {
   remoteConfig.settings.minimumFetchIntervalMillis = 10800 * 1000;
 }
 
-export { app, auth, db, storage, remoteConfig };
+// App Check protection (Anti-abuse & Anti-reverse engineering)
+let appCheck: AppCheck | null = null;
+if (typeof window !== "undefined") {
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  if (recaptchaSiteKey) {
+    try {
+      appCheck = initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch (err) {
+      console.warn("Firebase App Check failed to initialize:", err);
+    }
+  }
+}
+
+export { app, auth, db, storage, remoteConfig, appCheck };

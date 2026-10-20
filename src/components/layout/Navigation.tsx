@@ -151,7 +151,15 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           getCachedConfigDoc<{ visible?: boolean }>('voting_config'),
         ]);
 
-        setIsAdmin(Boolean(userData && userData.role === 'admin'));
+        const isUserAdmin = Boolean(userData && userData.role === 'admin');
+        setIsAdmin(isUserAdmin);
+        if (typeof document !== 'undefined') {
+          if (isUserAdmin) {
+            document.cookie = 'iaa_admin=1; path=/; SameSite=Lax';
+          } else {
+            document.cookie = 'iaa_admin=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          }
+        }
 
         if (disclaimerData && disclaimerData.show) {
           setShowDisclaimer(true);
@@ -171,6 +179,9 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         }
       } else {
         setIsAdmin(false);
+        if (typeof document !== 'undefined') {
+          document.cookie = 'iaa_admin=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
         setShowDisclaimer(false);
         setDisclaimerAccepted(true);
         setShowPfmLeague(true);

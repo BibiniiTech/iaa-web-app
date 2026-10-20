@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import findingsData from '@/data/audit_findings.json';
-import lawDetails from '@/data/law_details.json';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import styles from './findings.module.css';
 
 const CATEGORIES = [
@@ -20,101 +20,13 @@ const CATEGORIES = [
   { label: "Administrative", value: "ADMINISTRATIVE / GOVERNANCE / OTHERS" }
 ];
 
-const STOP_WORDS = new Set(["in", "to", "of", "on", "and", "the", "for", "a", "an", "is", "are", "that", "this", "which", "with", "at", "by", "from", "or", "as"]);
-
-const SYNONYMS: Record<string, string> = {
-  "vat": "value added tax",
-  "pfm": "public financial management",
-  "pfmr": "public financial management regulations li 2378",
-  "ppa": "public procurement act 663",
-  "iaa": "internal audit agency",
-  "gifmis": "ghana integrated financial management information system",
-  "igf": "internally generated funds",
-  "gcr": "general counterfoil receipt",
-  "wht": "withholding tax",
-  "paye": "pay as you earn",
-  "act 921": "public financial management act",
-  "li 2378": "public financial management regulations",
-  "cash": "money funds currency cheque bank float imprest",
-  "money": "cash funds currency cheque bank float imprest",
-  "funds": "cash money currency bank capital float imprest",
-  "fund": "cash money currency bank capital float imprest",
-  "payment": "disbursement voucher cheque pv",
-  "disbursement": "payment voucher cheque pv",
-  "voucher": "pv payment receipt invoice document",
-  "pv": "voucher payment disbursement",
-  "invoice": "receipt bill voucher document",
-  "receipt": "gcr invoice voucher bill payment",
-  "imprest": "petty cash float advance funds",
-  "advance": "imprest float petty cash funds",
-  "revenue": "igf income tax collection receipt collection",
-  "income": "revenue igf collection",
-  "stores": "inventory stock items goods warehouse",
-  "stock": "stores inventory items goods warehouse",
-  "inventory": "stores stock items goods warehouse",
-  "goods": "items stock inventory stores asset asset",
-  "purchases": "procurement goods contract tender ppa",
-  "contract": "agreement procurement project tender ppa",
-  "procurement": "purchases contract tender ppa buy",
-  "tax": "gra wht paye levy duty tariff statutory",
-  "salary": "payroll wage paye ssnit compensation staff employee",
-  "payroll": "salary wage paye ssnit compensation staff employee",
-  "wage": "salary payroll ssnit compensation staff employee",
-  "staff": "employee human resource personnel hr worker officers",
-  "employee": "staff human resource personnel hr worker officer",
-  "personnel": "staff employee human resource hr worker officer",
-  "vehicle": "transport car automobile fuel logbook transport",
-  "car": "vehicle transport fuel logbook transport",
-  "transport": "vehicle car fuel logbook transit",
-  "fuel": "petrol diesel vehicle car transport coupon logbook",
-  "fictitious": "fake forged fabricated false dummy simulated phantom non-existent",
-  "fake": "fictitious forged fabricated false dummy simulated",
-  "forged": "fictitious fake fabricated false copy altered simulated",
-  "suspicious": "dubious questionable fishy anomalous irregular unusual",
-  "irregular": "suspicious dubious questionable fishy anomalous unusual exception non-compliant",
-  "fraudulent": "dishonest corrupt illegal misappropriated unauthorized unapproved stolen missing theft",
-  "corrupt": "fraudulent dishonest illegal misappropriated bribe kickback",
-  "illegal": "unlawful non-compliant unauthorized unapproved prohibited fraudulent corrupt",
-  "unauthorized": "unapproved non-compliant illegal unlawful disallowed",
-  "missing": "lost stolen short count shortage unaccounted theft",
-  "stolen": "missing lost shortage misappropriated theft"
-};
-
-interface Finding {
+export interface Finding {
   id: string;
   category: string;
   observation: string;
   criteria: string[];
   applicableTo: string;
 }
-
-const levenshteinDistance = (s1: string, s2: string): number => {
-  const d: number[][] = Array.from({ length: s1.length + 1 }, () => Array(s2.length + 1).fill(0));
-  for (let i = 0; i <= s1.length; i++) d[i][0] = i;
-  for (let j = 0; j <= s2.length; j++) d[0][j] = j;
-  for (let i = 1; i <= s1.length; i++) {
-    for (let j = 1; j <= s2.length; j++) {
-      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
-    }
-  }
-  return d[s1.length][s2.length];
-};
-
-const isFuzzyMatch = (word: string, target: string): boolean => {
-  if (word.length < 4 || target.length < 4) return word === target;
-  return levenshteinDistance(word, target) <= 1;
-};
-
-const expandQueryWithSynonyms = (query: string): string => {
-  let expanded = query;
-  const words = query.toLowerCase().split(/\W+/).filter(Boolean);
-  Object.entries(SYNONYMS).forEach(([abbr, full]) => {
-    const isMatch = abbr.includes(" ") ? query.toLowerCase().includes(abbr) : words.includes(abbr);
-    if (isMatch) expanded += ` ${full}`;
-  });
-  return expanded;
-};
 
 const resolveLawKey = (lawString: string): string | null => {
   const cleanLaw = lawString.toLowerCase();
@@ -132,6 +44,9 @@ const resolveLawKey = (lawString: string): string | null => {
   return sectionNum ? `${actName}_${sectionNum}` : null;
 };
 
+// Global cache for fetched law provisions during session
+const lawCache = new Map<string, string>();
+
 interface CriteriaItemProps {
   c: string;
   searchQuery: string;
@@ -140,13 +55,46 @@ interface CriteriaItemProps {
 
 function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [detailText, setDetailText] = useState<string | null>(null);
+  const [loadingLaw, setLoadingLaw] = useState(false);
 
   const key = resolveLawKey(c);
-  const detailText = key ? (lawDetails as Record<string, string>)[key] : null;
+
+  const handleToggleExpand = async () => {
+    const nextState = !isExpanded;
+    setIsExpanded(nextState);
+
+    if (nextState && key && !detailText) {
+      if (lawCache.has(key)) {
+        setDetailText(lawCache.get(key) || null);
+        return;
+      }
+
+      setLoadingLaw(true);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch(`/api/findings/law?key=${encodeURIComponent(key)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.text || 'Full section text not found in database.';
+          lawCache.set(key, text);
+          setDetailText(text);
+        } else {
+          setDetailText('Unable to retrieve statutory provision at this time.');
+        }
+      } catch {
+        setDetailText('Error loading statutory provision.');
+      } finally {
+        setLoadingLaw(false);
+      }
+    }
+  };
 
   const handleCopyLaw = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const text = `${c}\n\n${detailText || "Full section text not found in database."}`;
+    const text = `${c}\n\n${detailText || "Full section text not loaded."}`;
     navigator.clipboard.writeText(text).then(() => {
       alert("Law reference copied to clipboard");
     });
@@ -155,7 +103,7 @@ function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProp
   return (
     <div
       className={styles.criteriaItem}
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={handleToggleExpand}
     >
       <div className={styles.criteriaHeader}>
         <span className={styles.gavelIcon}>⚖️</span>
@@ -174,7 +122,11 @@ function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProp
       {isExpanded && (
         <div className={styles.lawDetailContainer} onClick={e => e.stopPropagation()}>
           <p className={styles.lawDetailText}>
-            {detailText || "Full section text not found in database. Search the web for context."}
+            {loadingLaw ? (
+              <em>Loading provision details...</em>
+            ) : (
+              detailText || "Full section text not found in database. Search the web for context."
+            )}
           </p>
         </div>
       )}
@@ -186,91 +138,89 @@ export default function FindingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<Finding[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [showCategoryMismatchPrompt, setShowCategoryMismatchPrompt] = useState<boolean>(false);
 
-  const findings = findingsData as Finding[];
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // IDF weights for search
-  const wordWeights = useMemo(() => {
-    const counts: Record<string, number> = {};
-    findings.forEach(finding => {
-      const words = new Set((finding.observation + " " + finding.criteria.join(" ")).toLowerCase().split(/\W+/).filter(w => w.length > 2));
-      words.forEach(w => { counts[w] = (counts[w] || 0) + 1; });
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
     });
-    const total = findings.length;
-    const weights: Record<string, number> = {};
-    Object.entries(counts).forEach(([word, count]) => {
-      weights[word] = Math.log(total / count) + 1;
-    });
-    return weights;
-  }, [findings]);
+    return () => unsubscribe();
+  }, []);
 
-  const { searchResults, showCategoryMismatchPrompt } = useMemo(() => {
-    const filteredDatabase = activeCategoryFilter ? findings.filter(f => f.category === activeCategoryFilter) : findings;
-
-    if (!searchQuery.trim()) {
-      return {
-        searchResults: activeCategoryFilter ? filteredDatabase.slice(0, 150) : [],
-        showCategoryMismatchPrompt: false
-      };
+  const fetchFindings = useCallback(async (query: string, category: string | null) => {
+    if (!query.trim() && !category) {
+      setSearchResults([]);
+      setTotalCount(0);
+      setShowCategoryMismatchPrompt(false);
+      setLoading(false);
+      return;
     }
 
-    const rawQuery = searchQuery.toLowerCase().trim();
-    const expandedQuery = expandQueryWithSynonyms(rawQuery);
-    const queryTerms = expandedQuery.split(/\W+/).filter(t => t.length > 0 && !STOP_WORDS.has(t));
+    setLoading(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const params = new URLSearchParams();
+      if (query.trim()) params.set('q', query.trim());
+      if (category) params.set('category', category);
+      params.set('limit', '100');
 
-    const getScore = (finding: Finding) => {
-      let score = 0;
-      const obsLower = finding.observation.toLowerCase();
-      const critLower = finding.criteria.join(" ").toLowerCase();
-      const obsWords = obsLower.split(/\W+/).filter(Boolean);
-      const critWords = critLower.split(/\W+/).filter(Boolean);
-
-      if (obsLower.includes(rawQuery)) score += 50;
-      if (critLower.includes(rawQuery)) score += 30;
-
-      queryTerms.forEach(term => {
-        const weight = wordWeights[term] || 1.0;
-        const isWholeWordObs = obsWords.includes(term);
-        const isWholeWordCrit = critWords.includes(term);
-
-        if (isWholeWordObs) {
-          score += 15 * weight;
-          if (obsLower.startsWith(term) || obsLower.includes(` ${term}`)) score += 5;
-        } else if (obsLower.includes(term)) {
-          if (term.length >= 4) score += 5 * weight;
-        } else if (obsWords.some(w => isFuzzyMatch(w, term))) {
-          score += 5 * weight;
-        }
-
-        if (isWholeWordCrit) {
-          score += 10 * weight;
-        } else if (critLower.includes(term) && term.length >= 4) {
-          score += 4 * weight;
-        }
+      const res = await fetch(`/api/findings?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      return score;
-    };
 
-    const searchInDb = (db: Finding[]) => {
-      if (queryTerms.length === 0) {
-        return db.filter(f => f.observation.toLowerCase().includes(rawQuery) || f.criteria.some(c => c.toLowerCase().includes(rawQuery))).slice(0, 100);
+      if (res.ok) {
+        const data = await res.json();
+        const findings: Finding[] = data.findings || [];
+        setSearchResults(findings);
+        setTotalCount(data.total || findings.length);
+
+        // Check for category mismatch prompt if search has no results in category
+        if (findings.length === 0 && category && query.trim()) {
+          // Probe global search without category
+          const probeParams = new URLSearchParams({ q: query.trim(), limit: '1' });
+          const probeRes = await fetch(`/api/findings?${probeParams.toString()}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (probeRes.ok) {
+            const probeData = await probeRes.json();
+            setShowCategoryMismatchPrompt((probeData.total || 0) > 0);
+          }
+        } else {
+          setShowCategoryMismatchPrompt(false);
+        }
+      } else {
+        setSearchResults([]);
+        setTotalCount(0);
       }
-      return db
-        .map(f => ({ finding: f, score: getScore(f) }))
-        .filter(x => x.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map(x => x.finding)
-        .slice(0, 100);
-    };
+    } catch (err) {
+      console.error('Error fetching findings:', err);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    const categoryResults = searchInDb(filteredDatabase);
-    const mismatch = categoryResults.length === 0 && activeCategoryFilter && searchInDb(findings).length > 0;
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
 
-    return {
-      searchResults: categoryResults,
-      showCategoryMismatchPrompt: !!mismatch
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchFindings(searchQuery, activeCategoryFilter);
+    }, 250);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
-  }, [searchQuery, activeCategoryFilter, findings, wordWeights]);
+  }, [searchQuery, activeCategoryFilter, fetchFindings]);
 
   const highlightSearchTerms = (text: string, query: string) => {
     if (!query.trim()) return text;
@@ -321,6 +271,12 @@ export default function FindingsPage() {
         <p className="text-muted">Search audit observations, criteria/laws, and covered entities to find relevant regulatory references.</p>
       </header>
 
+      {isAuthenticated === false && (
+        <div className={styles.onboardingState} style={{ marginBottom: '1.5rem', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+          <p><strong>Note:</strong> Please sign in to authenticate and access the full statutory provisions and audit findings database.</p>
+        </div>
+      )}
+
       <section className={styles.searchSection}>
         <div className={styles.searchWrapper}>
           <input
@@ -348,7 +304,11 @@ export default function FindingsPage() {
       </section>
 
       <div className={styles.resultsList}>
-        {!searchQuery.trim() && !activeCategoryFilter ? (
+        {loading ? (
+          <div className={styles.onboardingState}>
+            <p>Searching findings database...</p>
+          </div>
+        ) : !searchQuery.trim() && !activeCategoryFilter ? (
           <div className={styles.onboardingState}>
             <div className={styles.iconLarge}>✨</div>
             <p>Enter a search query or select a category chip to begin exploring findings database.</p>
@@ -367,7 +327,7 @@ export default function FindingsPage() {
           </div>
         ) : (
           <>
-            <h2 className={styles.resultsCount}>Search Results ({searchResults.length})</h2>
+            <h2 className={styles.resultsCount}>Search Results ({totalCount})</h2>
             {searchResults.map(finding => (
               <div
                 key={finding.id}
