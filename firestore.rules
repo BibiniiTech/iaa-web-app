@@ -44,9 +44,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Submissions - ensure submitter stores their userId and can read back their submission
+    // Submissions - readable by signed-in users for Defaulters' List and Submissions Monitor
     match /submissions/{subId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }

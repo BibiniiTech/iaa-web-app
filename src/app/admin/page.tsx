@@ -217,7 +217,7 @@ const REPORT_FILTERS = [
   'Annual Workplan',
   'Strategic Plan',
   'Annual Statement on Statuses',
-  'Annual Internal Audit Report',
+  'Annual IA Performance Report',
   'CCC Review Report',
   'First Quarter SOI Report',
   'Second Quarter SOI Report',
@@ -439,6 +439,9 @@ function matchesReportFilter(submission: Submission, selectedReportType: string)
   if (selectedReportType === 'Other Reports') return submission.category === 'other';
   if (selectedReportType === 'CCC Review Report') {
     return submission.category === 'ccc' || submission.reportName.includes('CCC Review Report');
+  }
+  if (selectedReportType === 'Annual IA Performance Report') {
+    return submission.reportName === 'Annual IA Performance Report' || submission.reportName === 'Annual Internal Audit Report';
   }
   return submission.reportName === selectedReportType;
 }

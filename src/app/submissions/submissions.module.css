@@ -343,3 +343,55 @@
 .deadlinesTable tr:last-child td {
   border-bottom: none;
 }
+
+.defaultersBannerCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.defaultersBannerCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+}
+
+.defaultersBannerIcon {
+  color: #c05621;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.defaultersBannerText {
+  flex: 1;
+  text-align: left;
+}
+
+.defaultersBannerText h4 {
+  color: var(--primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.defaultersBannerText p {
+  color: var(--foreground);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.defaultersBannerArrow {
+  font-size: 1.5rem;
+  color: var(--primary);
+  font-weight: bold;
+}

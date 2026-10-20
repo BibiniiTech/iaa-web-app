@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import styles from './Navigation.module.css';
-
-import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import styles from './Navigation.module.css';
 import {
   getCachedConfigDoc,
   getCachedUserProfile,
@@ -22,6 +21,7 @@ type IconName =
   | 'autoAwesome'
   | 'calculate'
   | 'send'
+  | 'assignmentLate'
   | 'school'
   | 'leaderboard'
   | 'howToVote'
@@ -45,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Findings & Criteria', href: '/findings', icon: 'autoAwesome' },
   { label: 'Tax Calculator', href: '/calculators', icon: 'calculate' },
   { label: 'Submissions', href: '/submissions', icon: 'send' },
+  { label: "Defaulters' List", href: '/defaulters', icon: 'assignmentLate' },
   { label: 'Trainings', href: '/trainings', icon: 'school' },
   { label: 'PFM League', href: '/pfm-league', icon: 'leaderboard' },
   { label: 'Voting', href: '/voting', icon: 'howToVote' },
@@ -59,6 +60,7 @@ const ICON_PATHS: Record<IconName, string> = {
   autoAwesome: 'm19 9 1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zm7.5 5.5-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z',
   calculate: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h10v3H7V7zm2 10H7v-2h2v2zm0-4H7v-2h2v2zm4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm4 4h-2v-6h2v6z',
   send: 'M2 21 23 12 2 3v7l15 2-15 2v7z',
+  assignmentLate: 'M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm1 14h-2v-2h2v2zm0-4h-2V7h2v6z',
   school: 'M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 13.5L5 12.67v4L12 20l7-3.33v-4L12 16.5z',
   leaderboard: 'M16 11V3H8v8H2v10h20V11h-6zM4 19v-6h4v6H4zm10 0h-4V5h4v14zm6 0h-4v-6h4v6z',
   howToVote: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
@@ -70,7 +72,6 @@ const ICON_PATHS: Record<IconName, string> = {
   menu: 'M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z',
   close: 'M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z',
 };
-;
 
 function MaterialIcon({ name }: { name: IconName }) {
   return (
