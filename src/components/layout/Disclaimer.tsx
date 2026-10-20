@@ -16,47 +16,41 @@ export default function Disclaimer({ onAccept }: DisclaimerProps) {
           <Image src="/iaa_logo.png" alt="IAA Logo" width={180} height={60} priority />
         </div>
         <div className={styles.content}>
-          <h2 className={styles.title}>DISCLAIMER</h2>
+          <h2 className={styles.title}>Disclaimer</h2>
           <div className={styles.text}>
+            <div className={styles.subtitle}>Terms of Use, Privacy &amp; Ownership</div>
+
+            <p className={styles.intro}>
+              This App is NOT provided by the Internal Audit Agency (IAA) or its Affiliates.
+              <br />
+              It is a prototype to seek partnership for implementation and development from IAA and its Affiliates.
+            </p>
+
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>WEBSITE DISCLAIMER</h3>
+              <h3 className={styles.sectionTitle}>Accuracy of Information</h3>
               <p>
-                The information provided by the Internal Audit Agency (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) on this
-                application is for general informational purposes only. All information on the
-                application is provided in good faith, however we make no representation or warranty of
-                any kind, express or implied, regarding the accuracy, adequacy, validity, reliability,
-                availability, or completeness of any information on the application.
-              </p>
-              <p>
-                Under no circumstance shall we have any liability to you for any loss or damage of any
-                kind incurred as a result of the use of the application or reliance on any information
-                provided on the application. Your use of the application and your reliance on any
-                information on the application is solely at your own risk.
+                While the App was developed with real-life data to test functionality, accuracy can only be placed around 70%.
               </p>
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>EXTERNAL LINKS DISCLAIMER</h3>
+              <h3 className={styles.sectionTitle}>Data Protection</h3>
               <p>
-                The application may contain links to other websites or content belonging to or
-                originating from third parties. Such external links are not investigated, monitored, or
-                checked for accuracy, adequacy, validity, reliability, availability, or completeness by
-                us.
+                Submit Buttons have been disabled to prevent users from sharing data in this testing stage, and to prevent data leakage.
+                <br />
+                All information used in the App are already available and accessible by the general public and therefore not in breach of any data leakage policy.
+                <br />
+                Besides the App and its innovative features, we do not own the copyrights of the data used in this App
               </p>
             </section>
 
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>PROFESSIONAL DISCLAIMER</h3>
-              <p>
-                The application cannot and does not contain auditing/legal advice. The auditing/legal
-                information is provided for general informational and educational purposes only and is
-                not a substitute for professional advice.
-              </p>
-              <p>
-                THE USE OR RELIANCE OF ANY INFORMATION CONTAINED ON THE APPLICATION IS SOLELY AT YOUR OWN
-                RISK.
-              </p>
-            </section>
+            <div className={styles.footerNote}>
+              &copy; 2026 Bibinii Tech. All rights reserved.
+              <br />
+              call/whatsapp: +233 544 737 870
+              <br />
+              email: bibiniitech@gmail.com
+            </div>
           </div>
           <button className={styles.button} onClick={onAccept}>
             I AGREE

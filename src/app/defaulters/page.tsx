@@ -39,7 +39,6 @@ export interface ReportDefinition {
 export interface CategoryGroup {
   id: string;
   title: string;
-  icon: string;
   reports: ReportDefinition[];
 }
 
@@ -47,7 +46,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'quarterly',
     title: 'Quarterly Reports',
-    icon: '📊',
     reports: [
       {
         id: 'q_4',
@@ -86,7 +84,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'soi',
     title: 'Status of Implementations',
-    icon: '📋',
     reports: [
       {
         id: 'soi_3',
@@ -125,7 +122,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'ccc',
     title: 'CCC Review Reports',
-    icon: '📑',
     reports: [
       {
         id: 'ccc_1',
@@ -164,7 +160,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'workplan',
     title: 'Annual Workplan',
-    icon: '📅',
     reports: [
       {
         id: 'annual_workplan',
@@ -178,7 +173,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'strategic',
     title: 'Strategic Plan',
-    icon: '🎯',
     reports: [
       {
         id: 'strategic_plan',
@@ -192,7 +186,6 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     id: 'performance',
     title: 'Annual IA Performance Report',
-    icon: '🏆',
     reports: [
       {
         id: 'annual_ia_perf',
@@ -535,70 +528,6 @@ export default function DefaultersPage() {
     }));
   };
 
-  // CSV Export Handler
-  const handleExportCsv = (repId: string, title: string) => {
-    const data = complianceData.get(repId);
-    if (!data) return;
-
-    const activeTab = activeTabs[repId] || 'defaulters';
-    let rows: string[][] = [];
-    let filename = '';
-
-    if (activeTab === 'defaulters') {
-      filename = `Defaulters_${title.replace(/\s+/g, '_')}.csv`;
-      rows.push(['Institution Name', 'Type', 'Region', 'Deadline Date', 'Days Overdue', 'Status']);
-      for (const d of data.defaulters) {
-        rows.push([
-          `"${d.institution.name.replace(/"/g, '""')}"`,
-          d.institution.type,
-          d.institution.region || 'N/A',
-          data.dateString,
-          d.daysOverdue.toString(),
-          'Defaulter / Not Submitted',
-        ]);
-      }
-    } else if (activeTab === 'late') {
-      filename = `Late_Submissions_${title.replace(/\s+/g, '_')}.csv`;
-      rows.push(['Institution Name', 'Type', 'Region', 'Deadline Date', 'Submitted Date', 'Days Late', 'Sender', 'Status']);
-      for (const l of data.lateSubmissions) {
-        const subDate = new Date(l.submission.timestamp).toLocaleDateString('en-US');
-        rows.push([
-          `"${l.institution.name.replace(/"/g, '""')}"`,
-          l.institution.type,
-          l.institution.region || 'N/A',
-          data.dateString,
-          subDate,
-          l.daysLate.toString(),
-          `"${l.submission.senderName || ''}"`,
-          'Submitted Late',
-        ]);
-      }
-    } else {
-      filename = `OnTime_Submissions_${title.replace(/\s+/g, '_')}.csv`;
-      rows.push(['Institution Name', 'Type', 'Region', 'Deadline Date', 'Submitted Date', 'Status']);
-      for (const o of data.onTimeSubmissions) {
-        const subDate = new Date(o.submission.timestamp).toLocaleDateString('en-US');
-        rows.push([
-          `"${o.institution.name.replace(/"/g, '""')}"`,
-          o.institution.type,
-          o.institution.region || 'N/A',
-          data.dateString,
-          subDate,
-          'Submitted On Time',
-        ]);
-      }
-    }
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(',')).join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   if (loading) {
     return (
       <div className={styles.container}>
@@ -691,7 +620,6 @@ export default function DefaultersPage() {
                 aria-expanded={isCategoryExpanded}
               >
                 <div className={styles.categoryTitleGroup}>
-                  <span className={styles.categoryIcon}>{group.icon}</span>
                   <span className={styles.categoryTitle}>{group.title}</span>
                   {groupActiveCount > 0 ? (
                     <span className={styles.categorySummaryBadge}>
@@ -864,16 +792,6 @@ export default function DefaultersPage() {
                                         <span>({data.onTimeSubmissions.length})</span>
                                       </button>
                                     </div>
-
-                                    <button
-                                      type="button"
-                                      className={styles.exportBtn}
-                                      onClick={() => handleExportCsv(rep.id, rep.title)}
-                                      title="Download as CSV spreadsheet"
-                                    >
-                                      <span>📥</span>
-                                      <span>Export CSV</span>
-                                    </button>
                                   </div>
 
                                   {/* Filter Controls Bar */}

@@ -16,7 +16,7 @@
   background-color: var(--card-bg);
   border-radius: 16px;
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
   display: flex;
@@ -25,7 +25,7 @@
 }
 
 .header {
-  padding: 24px;
+  padding: 20px 24px;
   display: flex;
   justify-content: center;
   border-bottom: 1px solid var(--border-color);
@@ -35,7 +35,7 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .title {
@@ -49,24 +49,55 @@
 .text {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   color: var(--foreground);
   line-height: 1.5;
   font-size: 0.875rem;
-  text-align: justify;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+}
+
+.intro {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--foreground);
+  font-weight: 500;
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  text-align: center;
 }
 
 .sectionTitle {
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.section p {
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.footerNote {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--neutral-slate);
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
 }
 
 .button {
@@ -79,7 +110,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.2s;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .button:hover {

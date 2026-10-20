@@ -19,72 +19,48 @@ export default function DisclaimerPage() {
             priority
           />
         </div>
-        <h1>DISCLAIMER</h1>
+        <h1>Disclaimer</h1>
       </header>
 
       <div className={styles.content}>
         <div className={styles.card}>
-          <div className={styles.iconContainer}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-            </svg>
-          </div>
-
           <div className={styles.textSection}>
+            <h2 className={styles.cardTitle}>Terms of Use, Privacy &amp; Ownership</h2>
+
+            <p className={styles.introText}>
+              This App is NOT provided by the Internal Audit Agency (IAA) or its Affiliates.
+              <br />
+              It is a prototype to seek partnership for implementation and development from IAA and its Affiliates.
+            </p>
+
             <section className={styles.disclaimerSection}>
-              <h2 className={styles.sectionTitle}>WEBSITE DISCLAIMER</h2>
+              <h3 className={styles.sectionTitle}>Accuracy of Information</h3>
               <p>
-                The information provided by the Internal Audit Agency (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) on this
-                mobile application is for general informational purposes only. All information on the
-                application is provided in good faith, however we make no representation or warranty of
-                any kind, express or implied, regarding the accuracy, adequacy, validity, reliability,
-                availability, or completeness of any information on the application.
-              </p>
-              <p>
-                Under no circumstance shall we have any liability to you for any loss or damage of any
-                kind incurred as a result of the use of the application or reliance on any information
-                provided on the application. Your use of the application and your reliance on any
-                information on the application is solely at your own risk.
+                While the App was developed with real-life data to test functionality, accuracy can only be placed around 70%.
               </p>
             </section>
 
             <section className={styles.disclaimerSection}>
-              <h2 className={styles.sectionTitle}>EXTERNAL LINKS DISCLAIMER</h2>
+              <h3 className={styles.sectionTitle}>Data Protection</h3>
               <p>
-                The application may contain (or you may be sent through the application) links to other
-                websites or content belonging to or originating from third parties or links to websites
-                and features in banners or other advertising. Such external links are not investigated,
-                monitored, or checked for accuracy, adequacy, validity, reliability, availability, or
-                completeness by us.
-              </p>
-              <p>
-                We do not warrant, endorse, guarantee, or assume responsibility for the accuracy or
-                reliability of any information offered by third-party websites linked through the
-                application or any website or feature linked in any banner or other advertising. We will
-                not be a party to or in any way be responsible for monitoring any transaction between
-                you and third-party providers of products or services.
-              </p>
-            </section>
-
-            <section className={styles.disclaimerSection}>
-              <h2 className={styles.sectionTitle}>PROFESSIONAL DISCLAIMER</h2>
-              <p>
-                The application cannot and does not contain auditing/legal advice. The auditing/legal
-                information is provided for general informational and educational purposes only and is
-                not a substitute for professional advice. Accordingly, before taking any actions based
-                upon such information, we encourage you to consult with the appropriate professionals.
-                We do not provide any kind of auditing/legal advice.
-              </p>
-              <p>
-                THE USE OR RELIANCE OF ANY INFORMATION CONTAINED ON THE APPLICATION IS SOLELY AT YOUR OWN
-                RISK.
+                Submit Buttons have been disabled to prevent users from sharing data in this testing stage, and to prevent data leakage.
+                <br />
+                All information used in the App are already available and accessible by the general public and therefore not in breach of any data leakage policy.
+                <br />
+                Besides the App and its innovative features, we do not own the copyrights of the data used in this App
               </p>
             </section>
           </div>
         </div>
 
         <div className={styles.footer}>
-          <p>© {new Date().getFullYear()} Internal Audit Agency (IAA) Ghana. All rights reserved.</p>
+          <p>
+            &copy; 2026 Bibinii Tech. All rights reserved.
+            <br />
+            call/whatsapp: +233 544 737 870
+            <br />
+            email: bibiniitech@gmail.com
+          </p>
         </div>
       </div>
     </div>
