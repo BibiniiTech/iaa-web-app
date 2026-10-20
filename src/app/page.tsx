@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { getCachedConfigDoc, getCachedUserProfile, invalidateAllCaches } from '@/lib/firebase-cache';
 import { useRouter } from 'next/navigation';
@@ -46,6 +46,32 @@ function parseLocalDate(dateStr: string): Date | null {
   return parsed;
 }
 
+function isDeadlineMetBySubmissions(deadlineReport: string, submissions: Record<string, unknown>[]): boolean {
+  const normDeadline = deadlineReport.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const quarters = ['1st', '2nd', '3rd', '4th'];
+  const dlQuarter = quarters.find(q => normDeadline.includes(q));
+
+  return submissions.some(sub => {
+    const normRepName = String(sub.reportName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCategory = String(sub.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (dlQuarter) {
+      const matchesQuarter = normRepName.includes(dlQuarter) || normCategory.includes(dlQuarter);
+      if (!matchesQuarter) return false;
+
+      if (normDeadline.includes('ccc') || normDeadline.includes('commitment')) {
+        return sub.category === 'ccc' || normRepName.includes('ccc');
+      }
+      if (normDeadline.includes('status') || normDeadline.includes('implementation') || normDeadline.includes('soi')) {
+        return sub.category === 'soi' || normRepName.includes('soi') || normRepName.includes('status');
+      }
+      return (sub.category === 'quarterly' || normRepName.includes('quarterly') || normRepName.includes('internalaudit')) &&
+             !normRepName.includes('soi') && !normRepName.includes('ccc') && !normRepName.includes('status');
+    }
+    return sub.category === 'annual' || normRepName.includes('annual') || normRepName.includes('recommendation');
+  });
+}
+
 const DEFAULT_DEADLINES: Deadline[] = [
   { report: "1st Quarter Internal Audit Report", dateString: "2026-04-30" },
   { report: "2nd Quarter Internal Audit Report", dateString: "2026-07-31" },
@@ -78,7 +104,12 @@ export default function Home() {
     content: 'The IAA has relocated its office premises to Tumu Avenue, Kanda Accra – Ghana with Digital Address: GV-002-6511'
   });
 
-  const [counts, setCounts] = useState({ seminars: 0, submissions: 0 });
+  const [counts, setCounts] = useState({
+    seminars: 0,
+    submissions: 0,
+    submissionsLabel: 'Pending Submissions',
+    submissionsSubtitle: 'Next 30 Days'
+  });
   const router = useRouter();
 
   const loadData = useCallback(async (uid: string) => {
@@ -149,15 +180,50 @@ export default function Home() {
         deadlines = DEFAULT_DEADLINES;
       }
 
-      const submissionCount = deadlines.filter(d => {
+      const upcomingDeadlines = deadlines.filter(d => {
         const dDate = parseLocalDate(d.dateString);
         if (!dDate) return false;
         return dDate >= today && dDate <= thirtyDaysFromNow;
-      }).length;
+      });
+
+      const institution = String(userData?.institution || userData?.institutionName || '').trim();
+      const isAdminOrNoInst = !institution || userData?.role === 'admin';
+
+      let institutionSubmissions: Record<string, unknown>[] = [];
+      if (!isAdminOrNoInst) {
+        try {
+          const q = query(collection(db, 'submissions'), where('institution', '==', institution));
+          const snap = await getDocs(q);
+          institutionSubmissions = snap.docs.map(doc => doc.data() as Record<string, unknown>);
+        } catch {
+          try {
+            const snap = await getDocs(query(collection(db, 'submissions'), limit(300)));
+            const targetNorm = institution.toLowerCase().replace(/[^a-z0-9]/g, '');
+            institutionSubmissions = snap.docs
+              .map(doc => doc.data() as Record<string, unknown>)
+              .filter(s => String(s.institution || '').toLowerCase().replace(/[^a-z0-9]/g, '') === targetNorm);
+          } catch (e) {
+            console.error("Error fetching institution submissions:", e);
+          }
+        }
+      }
+
+      let submissionsLabel = 'Upcoming Deadlines';
+      let submissionCount = upcomingDeadlines.length;
+      let submissionsSubtitle = 'Next 30 Days';
+
+      if (!isAdminOrNoInst) {
+        submissionsLabel = 'Pending Submissions';
+        const pendingCount = upcomingDeadlines.filter(d => !isDeadlineMetBySubmissions(d.report, institutionSubmissions)).length;
+        submissionCount = pendingCount;
+        submissionsSubtitle = pendingCount === 0 ? 'All Caught Up' : 'Due Soon';
+      }
 
       setCounts({
         seminars: seminarCount,
-        submissions: submissionCount
+        submissions: submissionCount,
+        submissionsLabel,
+        submissionsSubtitle
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -220,6 +286,9 @@ export default function Home() {
             </div>
             <div className={styles.statValue}>{counts.seminars.toString().padStart(2, '0')}</div>
             <div className={styles.statLabel}>Upcoming Seminars</div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, marginTop: '2px', color: 'var(--text-secondary)' }}>
+              Next 30 Days
+            </div>
           </div>
           <div className={styles.statItem} onClick={() => router.push('/submissions#deadlines')}>
             <div className={styles.statIcon}>
@@ -228,7 +297,17 @@ export default function Home() {
               </svg>
             </div>
             <div className={styles.statValue}>{counts.submissions.toString().padStart(2, '0')}</div>
-            <div className={styles.statLabel}>Pending Submissions</div>
+            <div className={styles.statLabel}>{counts.submissionsLabel}</div>
+            <div
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                marginTop: '2px',
+                color: counts.submissionsSubtitle === 'All Caught Up' ? '#2e7d32' : counts.submissionsSubtitle === 'Due Soon' ? '#e65100' : 'var(--text-secondary)'
+              }}
+            >
+              {counts.submissionsSubtitle}
+            </div>
           </div>
         </div>
 
@@ -250,29 +329,31 @@ export default function Home() {
             </div>
             <div className={styles.quickCard} onClick={() => router.push('/resources?expand=legislations')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M5.22 8.57l3.53 3.53 4.24-4.24L9.46 4.33a1.5 1.5 0 0 0-2.12 0L5.22 6.45a1.5 1.5 0 0 0 0 2.12zM16.54 11l-4.24 4.24 3.53 3.53a1.5 1.5 0 0 0 2.12 0l2.12-2.12a1.5 1.5 0 0 0 0-2.12L16.54 11zM10.5 15l-1.41-1.41L2.12 20.5a1 1 0 0 0 0 1.41l.71.71a1 1 0 0 0 1.41 0L10.5 15z"/>
+                <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
               </svg>
               <span>Legislation</span>
             </div>
             <div className={styles.quickCard} onClick={() => router.push('/resources?expand=templates')}>
               <svg className={styles.cardIcon} width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
               </svg>
               <span>Reporting Templates</span>
             </div>
           </div>
         </section>
 
-        {/* Notices Card */}
-        <div className={styles.noticeCard}>
-          <div className={styles.noticeHeader}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--primary)">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/>
-            </svg>
-            <h4>{notice.title}</h4>
+        {/* Notices Section */}
+        <section className={styles.noticesSection}>
+          <div className={styles.noticeCard}>
+            <div className={styles.noticeHeader}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--primary)">
+                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/>
+              </svg>
+              <h3>{notice.title}</h3>
+            </div>
+            <p>{notice.content}</p>
           </div>
-          <p>{notice.content}</p>
-        </div>
+        </section>
       </div>
     </div>
   );
