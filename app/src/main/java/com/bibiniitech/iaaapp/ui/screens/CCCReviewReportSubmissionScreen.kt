@@ -252,6 +252,12 @@ fun CCCReviewReportSubmissionScreen(onBack: () -> Unit) {
 
                 Button(
                     onClick = {
+                        Toast.makeText(
+                            context,
+                            "Please use your normal submissions channel until the Agency approves the use of this app",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@Button
                         isSending = true
                         val institution = if (institutionType == "MDA" || institutionType == "SOE") institutionText else selectedMmda
 
