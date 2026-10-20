@@ -1894,7 +1894,7 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
                 OutlinedTextField(value = semTopic, onValueChange = { semTopic = it }, label = { Text("Topic Title") }, modifier = Modifier.fillMaxWidth())
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = semDate, onValueChange = { semDate = it }, label = { Text("Date (e.g. Mar 26, 2026)") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = semDate, onValueChange = { semDate = it }, label = { Text("Date (YYYY-MM-DD, e.g. 2026-03-26)") }, modifier = Modifier.weight(1f))
                     OutlinedTextField(value = semTime, onValueChange = { semTime = it }, label = { Text("Time (e.g. 02:00 PM)") }, modifier = Modifier.weight(1f))
                 }
 

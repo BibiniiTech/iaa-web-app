@@ -915,8 +915,9 @@ object FirebaseHelper {
             } else {
                 emptyList()
             }
-            cachedSeminars = list
-            list
+            val result = list.ifEmpty { mockSeminars }
+            cachedSeminars = result
+            result
         } catch (_: Exception) {
             mockSeminars
         }

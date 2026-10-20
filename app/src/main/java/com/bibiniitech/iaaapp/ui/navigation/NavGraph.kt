@@ -42,7 +42,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     }
     data object FindingsCriteria : Screen("findings_criteria", "Findings & Criteria", Icons.Default.AutoAwesome)
     data object Calculators : Screen("tax_calculators", "Tax Calculator", Icons.Default.Calculate)
-    data object Submissions : Screen("submissions", "Submissions", Icons.AutoMirrored.Filled.Send)
+    data object Submissions : Screen("submissions?scroll={scroll}", "Submissions", Icons.AutoMirrored.Filled.Send) {
+        fun createRoute(scroll: String? = null) = if (scroll != null) "submissions?scroll=$scroll" else "submissions"
+    }
     data object Defaulters : Screen("defaulters", "Defaulters' List", Icons.Default.Warning)
     data object QuarterlySubmission : Screen("quarterly_submission", "Quarterly Submission", Icons.AutoMirrored.Filled.Send)
     data object AnnualSubmission : Screen("annual_submission", "Annual Submission", Icons.AutoMirrored.Filled.Send)
@@ -89,7 +91,7 @@ fun NavGraph(
                     navController.navigateToScreenSafe(Screen.Trainings)
                 },
                 onNavigateToSubmissions = {
-                    navController.navigateToScreenSafe(Screen.Submissions)
+                    navController.navigateToScreenSafe(Screen.Submissions, Screen.Submissions.createRoute(scroll = "deadlines"))
                 },
                 onNavigateToQuarterly = {
                     navController.navigateToScreenSafe(Screen.QuarterlySubmission, popUpToStart = false)
@@ -124,8 +126,20 @@ fun NavGraph(
         composable(Screen.Calculators.route) {
             TaxCalculatorsScreen(navController = navController)
         }
-        composable(Screen.Submissions.route) { 
+        composable(
+            route = Screen.Submissions.route,
+            arguments = listOf(
+                navArgument("scroll") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val scroll = backStackEntry.arguments?.getString("scroll")
             SubmissionsScreen(
+                scrollToDeadlines = scroll == "deadlines", 
+
                 onNavigateToQuarterly = {
                     navController.navigateToScreenSafe(Screen.QuarterlySubmission, popUpToStart = false)
                 },

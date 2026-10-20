@@ -21,16 +21,25 @@ import com.bibiniitech.iaaapp.ui.theme.ThemePreviews
 
 @Composable
 fun SubmissionsScreen(
+    scrollToDeadlines: Boolean = false,
     onNavigateToQuarterly: () -> Unit = {},
     onNavigateToAnnual: () -> Unit = {},
     onNavigateToCCC: () -> Unit = {},
     onNavigateToStatusOfImplementation: () -> Unit = {},
     onNavigateToOther: () -> Unit = {},
 ) {
+    val scrollState = rememberScrollState()
+
+    androidx.compose.runtime.LaunchedEffect(scrollToDeadlines) {
+        if (scrollToDeadlines) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(48.dp))

@@ -31,6 +31,9 @@ import com.bibiniitech.iaaapp.R
 import com.bibiniitech.iaaapp.ui.theme.IAAAppTheme
 import com.bibiniitech.iaaapp.ui.theme.ThemePreviews
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.util.Locale
 import kotlinx.coroutines.launch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
@@ -312,6 +315,30 @@ fun QuickAccessCard(
     }
 }
 
+private fun parseFlexibleDate(dateStr: String): LocalDate? {
+    if (dateStr.isBlank()) return null
+    val clean = dateStr.trim()
+    try {
+        return LocalDate.parse(clean, DateTimeFormatter.ISO_LOCAL_DATE)
+    } catch (_: Exception) {}
+
+    val patterns = listOf(
+        "MMM d, yyyy", "MMM dd, yyyy", "MMMM d, yyyy", "MMMM dd, yyyy",
+        "d MMM yyyy", "dd MMM yyyy", "d MMMM yyyy", "dd MMMM yyyy",
+        "yyyy/MM/dd", "dd/MM/yyyy"
+    )
+    for (pattern in patterns) {
+        try {
+            val formatter = DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern(pattern)
+                .toFormatter(Locale.ENGLISH)
+            return LocalDate.parse(clean, formatter)
+        } catch (_: Exception) {}
+    }
+    return null
+}
+
 @Composable
 fun QuickStatsRow(
     onTrainingsClick: () -> Unit,
@@ -324,17 +351,18 @@ fun QuickStatsRow(
 
     // Seminar dates calculation
     val upcomingSeminarsCount = seminars.count { sem ->
-        try {
-            val semDate = LocalDate.parse(sem.date)
+        val semDate = parseFlexibleDate(sem.date)
+        if (semDate != null) {
             !semDate.isBefore(today) && !semDate.isAfter(thirtyDaysFromNow)
-        } catch (_: java.lang.Exception) {
-            true
+        } else {
+            false
         }
     }
 
     // Submissions count calculation using SubmissionDeadline
     val upcomingSubmissionsCount = deadlines.count {
-        !it.date.isBefore(today) && !it.date.isAfter(thirtyDaysFromNow) 
+        val dDate = parseFlexibleDate(it.dateString) ?: it.date
+        !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow) 
     }
 
     Row(
