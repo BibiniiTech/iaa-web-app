@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,6 +43,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object FindingsCriteria : Screen("findings_criteria", "Findings & Criteria", Icons.Default.AutoAwesome)
     data object Calculators : Screen("tax_calculators", "Tax Calculator", Icons.Default.Calculate)
     data object Submissions : Screen("submissions", "Submissions", Icons.AutoMirrored.Filled.Send)
+    data object Defaulters : Screen("defaulters", "Defaulters' List", Icons.Default.Warning)
     data object QuarterlySubmission : Screen("quarterly_submission", "Quarterly Submission", Icons.AutoMirrored.Filled.Send)
     data object AnnualSubmission : Screen("annual_submission", "Annual Submission", Icons.AutoMirrored.Filled.Send)
     data object CCCReviewSubmission : Screen("ccc_review_submission", "CCC Review Submission", Icons.AutoMirrored.Filled.Send)
@@ -64,7 +66,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     }
 
     companion object {
-        val items by lazy { listOf(Home, Resources, FindingsCriteria, Calculators, Submissions, Trainings, PFMLeague, Voting, Contact, Disclaimer, Login, Profile, Admin) }
+        val items by lazy { listOf(Home, Resources, FindingsCriteria, Calculators, Submissions, Defaulters, Trainings, PFMLeague, Voting, Contact, Disclaimer, Login, Profile, Admin) }
     }
 }
 
@@ -140,6 +142,11 @@ fun NavGraph(
                     navController.navigateToScreenSafe(Screen.OtherReportsSubmission, popUpToStart = false)
                 }
             ) 
+        }
+        composable(Screen.Defaulters.route) {
+            DefaultersScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Screen.QuarterlySubmission.route) {
             QuarterlyReportSubmissionScreen(
