@@ -64,6 +64,7 @@ fun HomeScreen(
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     val deadlinesList = remember { mutableStateListOf<SubmissionDeadline>() }
     val seminarsList = remember { mutableStateListOf<Seminar>() }
+    val institutionSubmissions = remember { mutableStateListOf<SubmissionRecord>() }
 
     LaunchedEffect(syncToken) {
         if (isPreview) {
@@ -88,6 +89,12 @@ fun HomeScreen(
         
         seminarsList.clear()
         seminarsList.addAll(FirebaseHelper.getSeminars())
+
+        val currentInst = userProfile?.institution ?: ""
+        if (currentInst.isNotBlank()) {
+            institutionSubmissions.clear()
+            institutionSubmissions.addAll(FirebaseHelper.getSubmissionsForInstitution(currentInst))
+        }
     }
 
     PullToRefreshBox(
@@ -127,7 +134,7 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                QuickStatsRow(onNavigateToTrainings, onNavigateToSubmissions, deadlinesList, seminarsList)
+                QuickStatsRow(onNavigateToTrainings, onNavigateToSubmissions, deadlinesList, seminarsList, userProfile, institutionSubmissions)
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
@@ -339,12 +346,44 @@ private fun parseFlexibleDate(dateStr: String): LocalDate? {
     return null
 }
 
+private fun isDeadlineMetBySubmissions(
+    deadline: SubmissionDeadline,
+    submissions: List<SubmissionRecord>
+): Boolean {
+    val normDeadline = deadline.report.lowercase().replace(Regex("[^a-z0-9]"), "")
+    val quarters = listOf("1st", "2nd", "3rd", "4th")
+    val dlQuarter = quarters.firstOrNull { normDeadline.contains(it) }
+
+    return submissions.any { sub ->
+        val normRepName = sub.reportName.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val normCategory = sub.category.lowercase().replace(Regex("[^a-z0-9]"), "")
+
+        if (dlQuarter != null) {
+            val matchesQuarter = normRepName.contains(dlQuarter) || normCategory.contains(dlQuarter)
+            if (!matchesQuarter) return@any false
+
+            if (normDeadline.contains("ccc") || normDeadline.contains("commitment")) {
+                sub.category == "ccc" || normRepName.contains("ccc")
+            } else if (normDeadline.contains("status") || normDeadline.contains("implementation") || normDeadline.contains("soi")) {
+                sub.category == "soi" || normRepName.contains("soi") || normRepName.contains("status")
+            } else {
+                (sub.category == "quarterly" || normRepName.contains("quarterly") || normRepName.contains("internalaudit")) &&
+                    !normRepName.contains("soi") && !normRepName.contains("ccc") && !normRepName.contains("status")
+            }
+        } else {
+            sub.category == "annual" || normRepName.contains("annual") || normRepName.contains("recommendation")
+        }
+    }
+}
+
 @Composable
 fun QuickStatsRow(
     onTrainingsClick: () -> Unit,
     onSubmissionsClick: () -> Unit,
     deadlines: List<SubmissionDeadline>,
-    seminars: List<Seminar>
+    seminars: List<Seminar>,
+    userProfile: UserProfile? = null,
+    institutionSubmissions: List<SubmissionRecord> = emptyList()
 ) {
     val today = LocalDate.now()
     val thirtyDaysFromNow = today.plusDays(30)
@@ -359,10 +398,24 @@ fun QuickStatsRow(
         }
     }
 
-    // Submissions count calculation using SubmissionDeadline
-    val upcomingSubmissionsCount = deadlines.count {
+    // Determine user role and institution
+    val isAdminOrNoInstitution = userProfile?.role == "admin" || userProfile?.institution.isNullOrBlank()
+
+    // Submissions / Deadlines calculation
+    val upcomingDeadlines = deadlines.filter {
         val dDate = parseFlexibleDate(it.dateString) ?: it.date
-        !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow) 
+        !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow)
+    }
+
+    val (submissionsLabel, submissionsCount, submissionsSubtitle) = if (isAdminOrNoInstitution) {
+        Triple("Upcoming Deadlines", upcomingDeadlines.size, "Next 30 Days")
+    } else {
+        // Filter out deadlines already submitted by the user's institution
+        val pendingCount = upcomingDeadlines.count { dl ->
+            !isDeadlineMetBySubmissions(dl, institutionSubmissions)
+        }
+        val subtitle = if (pendingCount == 0) "All Caught Up" else "Due Soon"
+        Triple("Pending Submissions", pendingCount, subtitle)
     }
 
     Row(
@@ -375,14 +428,16 @@ fun QuickStatsRow(
                 .clickable { onTrainingsClick() },
             label = stringResource(id = R.string.upcoming_seminars),
             value = upcomingSeminarsCount.toString().padStart(2, '0'),
+            subtitle = "Next 30 Days",
             icon = Icons.Default.School
         )
         StatItem(
             modifier = Modifier
                 .weight(1f)
                 .clickable { onSubmissionsClick() },
-            label = stringResource(id = R.string.pending_submissions),
-            value = upcomingSubmissionsCount.toString().padStart(2, '0'),
+            label = submissionsLabel,
+            value = submissionsCount.toString().padStart(2, '0'),
+            subtitle = submissionsSubtitle,
             icon = Icons.Default.Notifications
         )
     }
@@ -393,6 +448,7 @@ fun StatItem(
     modifier: Modifier = Modifier,
     label: String,
     value: String,
+    subtitle: String? = null,
     icon: ImageVector
 ) {
     Card(
@@ -434,6 +490,21 @@ fun StatItem(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (!subtitle.isNullOrBlank()) {
+                val subtitleColor = when (subtitle) {
+                    "All Caught Up" -> Color(0xFF2E7D32)
+                    "Due Soon" -> Color(0xFFE65100)
+                    else -> MaterialTheme.colorScheme.outline
+                }
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    color = subtitleColor,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
     }
 }
