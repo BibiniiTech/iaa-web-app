@@ -266,11 +266,27 @@ export default function TrainingsPage() {
   );
 }
 
+function parseLocalDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const clean = dateStr.trim();
+  const isoMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    return new Date(year, month, day, 0, 0, 0, 0);
+  }
+  const parsed = new Date(clean);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // ─── Seminar Card (mirrors SeminarDetailItem in Android) ───────────────────
 function SeminarCard({ seminar }: { seminar: Seminar }) {
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString(undefined, {
+      const d = parseLocalDate(dateStr);
+      if (!d) return dateStr;
+      return d.toLocaleDateString(undefined, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

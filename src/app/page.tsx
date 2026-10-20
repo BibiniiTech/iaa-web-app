@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { getCachedConfigDoc, getCachedUserProfile } from '@/lib/firebase-cache';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { getCachedConfigDoc, getCachedUserProfile, invalidateAllCaches } from '@/lib/firebase-cache';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import styles from './page.module.css';
@@ -21,12 +22,28 @@ interface WelcomeConfig {
 interface Seminar {
   id: string;
   topic: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD or parseable date
 }
 
 interface Deadline {
   report: string;
-  dateString: string; // YYYY-MM-DD
+  dateString: string; // YYYY-MM-DD or parseable date
+}
+
+function parseLocalDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const clean = dateStr.trim();
+  const isoMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    return new Date(year, month, day, 0, 0, 0, 0);
+  }
+  const parsed = new Date(clean);
+  if (isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
 }
 
 const DEFAULT_DEADLINES: Deadline[] = [
@@ -64,95 +81,108 @@ export default function Home() {
   const [counts, setCounts] = useState({ seminars: 0, submissions: 0 });
   const router = useRouter();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        try {
-          const [userData, welcomeData, noticeData, seminarsData, deadlinesData] = await Promise.all([
-            getCachedUserProfile(currentUser.uid),
-            getCachedConfigDoc<WelcomeConfig>('welcome_note'),
-            getCachedConfigDoc<NoticeConfig>('notices'),
-            getCachedConfigDoc<{ json?: string }>('seminars'),
-            getCachedConfigDoc<{ json?: string }>('deadlines'),
-          ]);
+  const loadData = useCallback(async (uid: string) => {
+    try {
+      const [userData, welcomeData, noticeData, seminarsData, deadlinesData] = await Promise.all([
+        getCachedUserProfile(uid),
+        getCachedConfigDoc<WelcomeConfig>('welcome_note'),
+        getCachedConfigDoc<NoticeConfig>('notices'),
+        getCachedConfigDoc<{ json?: string }>('seminars'),
+        getCachedConfigDoc<{ json?: string }>('deadlines'),
+      ]);
 
-          if (userData) {
-            setProfile(userData);
-            const isComplete = userData.isProfileComplete || userData.profileComplete || (
-              userData.firstName &&
-              userData.surname &&
-              userData.phone &&
-              (userData.institution || userData.institutionName)
-            );
-            if (!isComplete) {
-              router.push('/profile-completion');
-            }
-          } else {
-            router.push('/profile-completion');
-          }
-
-          if (welcomeData) {
-            setWelcome(welcomeData);
-          }
-          if (noticeData) {
-            setNotice(noticeData);
-          }
-
-          let seminars: Seminar[] = [];
-          if (seminarsData?.json) {
-            try {
-              seminars = JSON.parse(seminarsData.json) as Seminar[];
-            } catch {
-              seminars = [];
-            }
-          }
-          if (seminars.length === 0) {
-            seminars = DEFAULT_SEMINARS;
-          }
-
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const thirtyDaysFromNow = new Date();
-          thirtyDaysFromNow.setDate(today.getDate() + 30);
-          thirtyDaysFromNow.setHours(23, 59, 59, 999);
-
-          const seminarCount = seminars.filter(sem => {
-            const semDate = new Date(sem.date);
-            if (isNaN(semDate.getTime())) return true;
-            return semDate >= today && semDate <= thirtyDaysFromNow;
-          }).length;
-
-          let deadlines: Deadline[] = [];
-          if (deadlinesData?.json) {
-            try {
-              deadlines = JSON.parse(deadlinesData.json) as Deadline[];
-            } catch {
-              deadlines = [];
-            }
-          }
-          if (deadlines.length === 0) {
-            deadlines = DEFAULT_DEADLINES;
-          }
-
-          const submissionCount = deadlines.filter(d => {
-            const dDate = new Date(d.dateString);
-            if (isNaN(dDate.getTime())) return true;
-            return dDate >= today && dDate <= thirtyDaysFromNow;
-          }).length;
-
-          setCounts({
-            seminars: seminarCount,
-            submissions: submissionCount
-          });
-        } catch (error) {
-          console.error("Error fetching dashboard data:", error);
+      if (userData) {
+        setProfile(userData);
+        const isComplete = userData.isProfileComplete || userData.profileComplete || (
+          userData.firstName &&
+          userData.surname &&
+          userData.phone &&
+          (userData.institution || userData.institutionName)
+        );
+        if (!isComplete) {
+          router.push('/profile-completion');
         }
+      } else {
+        router.push('/profile-completion');
+      }
+
+      if (welcomeData) {
+        setWelcome(welcomeData);
+      }
+      if (noticeData) {
+        setNotice(noticeData);
+      }
+
+      let seminars: Seminar[] = [];
+      if (seminarsData?.json) {
+        try {
+          seminars = JSON.parse(seminarsData.json) as Seminar[];
+        } catch {
+          seminars = [];
+        }
+      }
+      if (seminars.length === 0) {
+        seminars = DEFAULT_SEMINARS;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+      thirtyDaysFromNow.setHours(23, 59, 59, 999);
+
+      const seminarCount = seminars.filter(sem => {
+        const semDate = parseLocalDate(sem.date);
+        if (!semDate) return false;
+        return semDate >= today && semDate <= thirtyDaysFromNow;
+      }).length;
+
+      let deadlines: Deadline[] = [];
+      if (deadlinesData?.json) {
+        try {
+          deadlines = JSON.parse(deadlinesData.json) as Deadline[];
+        } catch {
+          deadlines = [];
+        }
+      }
+      if (deadlines.length === 0) {
+        deadlines = DEFAULT_DEADLINES;
+      }
+
+      const submissionCount = deadlines.filter(d => {
+        const dDate = parseLocalDate(d.dateString);
+        if (!dDate) return false;
+        return dDate >= today && dDate <= thirtyDaysFromNow;
+      }).length;
+
+      setCounts({
+        seminars: seminarCount,
+        submissions: submissionCount
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    let syncUnsub: (() => void) | null = null;
+    const authUnsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        await loadData(currentUser.uid);
+        // Subscribe to real-time sync state updates (exact parity with Android syncToken)
+        syncUnsub = onSnapshot(doc(db, 'config', 'sync_state'), () => {
+          invalidateAllCaches();
+          loadData(currentUser.uid);
+        });
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [router]);
+    return () => {
+      authUnsub();
+      if (syncUnsub) syncUnsub();
+    };
+  }, [loadData]);
 
   if (loading) return <div className={styles.loading}>Loading...</div>;
 

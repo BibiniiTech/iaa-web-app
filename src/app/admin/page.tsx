@@ -1007,7 +1007,7 @@ function DatesSeminarsTab({
       <CollapsibleCard title="Manage Seminars">
         <Input label="Topic Title" value={newSeminar.topic} onChange={(topic) => setNewSeminar({ ...newSeminar, topic })} />
         <div className={styles.twoCol}>
-          <Input label="Date (e.g. Mar 26, 2026)" value={newSeminar.date} onChange={(date) => setNewSeminar({ ...newSeminar, date })} />
+          <Input label="Date (YYYY-MM-DD, e.g. 2026-03-26)" value={newSeminar.date} onChange={(date) => setNewSeminar({ ...newSeminar, date })} />
           <Input label="Time (e.g. 02:00 PM)" value={newSeminar.time} onChange={(time) => setNewSeminar({ ...newSeminar, time })} />
         </div>
         <div className={styles.twoCol}>
