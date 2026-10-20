@@ -123,7 +123,7 @@ fun AnnualReportSubmissionScreen(onBack: () -> Unit) {
     val soeData = InstitutionData.SOE_LIST
     val institutionTypes = InstitutionData.INSTITUTION_TYPES
 
-    val reportTypes = listOf("Annual Workplan", "Strategic Plan", "Annual Statement on Statuses", "Annual Internal Audit Report")
+    val reportTypes = listOf("Annual Workplan", "Strategic Plan", "Annual Statement on Statuses", "Annual IA Performance Report")
 
     Scaffold(
         topBar = {

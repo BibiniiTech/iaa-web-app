@@ -776,7 +776,7 @@ fun SubmissionsMonitorCard(
             "Annual Workplan",
             "Strategic Plan",
             "Annual Statement on Statuses",
-            "Annual Internal Audit Report",
+            "Annual IA Performance Report",
             "CCC Review Report",
             "First Quarter SOI Report",
             "Second Quarter SOI Report",
