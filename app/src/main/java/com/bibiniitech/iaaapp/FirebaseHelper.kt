@@ -1205,6 +1205,16 @@ object FirebaseHelper {
         }
     }
 
+    suspend fun getSubmissionsForInstitution(institution: String): List<SubmissionRecord> {
+        if (institution.isBlank()) return emptyList()
+        val all = getSubmissions(limit = 1000)
+        val targetNorm = institution.lowercase().trim().replace(Regex("[^a-z0-9]"), "")
+        return all.filter { sub ->
+            val subInstNorm = sub.institution.lowercase().trim().replace(Regex("[^a-z0-9]"), "")
+            subInstNorm == targetNorm
+        }
+    }
+
     // --- VOTING SYSTEM ---
 
     suspend fun getVotingConfig(): VotingConfig {
