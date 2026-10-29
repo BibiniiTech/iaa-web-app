@@ -42,7 +42,7 @@ export default function SignUpPage() {
     <div className={styles.authContainer}>
       <div className={styles.authCard}>
         <h1 className={styles.authTitle}>Create Account</h1>
-        <p className={styles.authSubtitle}>Get started with your IAA portal account</p>
+        <p className={styles.authSubtitle}>Get started with your IAA App account</p>
 
         {error && <div className={styles.errorMessage}>{error}</div>}
 

@@ -3,8 +3,16 @@ import "./globals.css";
 import Navigation from "@/components/layout/Navigation";
 
 export const metadata: Metadata = {
-  title: "IAA Portal",
-  description: "Internal Audit Agency Submissions Portal",
+  title: "IAA App",
+  description: "Internal Audit Agency App",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
