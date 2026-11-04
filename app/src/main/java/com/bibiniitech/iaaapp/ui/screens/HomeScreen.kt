@@ -416,7 +416,13 @@ private fun isDeadlineMetBySubmissions(
                     !normRepName.contains("soi") && !normRepName.contains("ccc") && !normRepName.contains("status")
             }
         } else {
-            sub.category == "annual" || normRepName.contains("annual") || normRepName.contains("recommendation")
+            if (normDeadline.contains("workplan") || normDeadline.contains("strategic") || normDeadline.contains("annual") || normDeadline.contains("performance")) {
+                sub.category == "annual" || normRepName.contains("annual") || normRepName.contains("recommendation") || normRepName.contains("workplan") || normRepName.contains("strategic")
+            } else {
+                // Dynamic Administrator Report Matching
+                (normRepName.isNotEmpty() && (normRepName.contains(normDeadline) || normDeadline.contains(normRepName))) ||
+                (sub.category == "other" && normRepName.split(" ").filter { it.length > 3 }.any { normDeadline.contains(it) })
+            }
         }
     }
 }
@@ -447,20 +453,39 @@ fun QuickStatsRow(
     val isAdminOrNoInstitution = userProfile?.role == "admin" || userProfile?.institution.isNullOrBlank()
 
     // Submissions / Deadlines calculation
-    val upcomingDeadlines = deadlines.filter {
-        val dDate = parseFlexibleDate(it.dateString) ?: it.date
-        !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow)
-    }
-
     val (submissionsLabel, submissionsCount, submissionsSubtitle) = if (isAdminOrNoInstitution) {
+        val upcomingDeadlines = deadlines.filter {
+            val dDate = parseFlexibleDate(it.dateString) ?: it.date
+            !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow)
+        }
         Triple("Upcoming Deadlines", upcomingDeadlines.size, "Next 30 Days")
     } else {
-        // Filter out deadlines already submitted by the user's institution
-        val pendingCount = upcomingDeadlines.count { dl ->
-            !isDeadlineMetBySubmissions(dl, institutionSubmissions)
+        // Persistent Overdue Submissions: Deadlines in the past that were not submitted
+        val overdueDeadlines = deadlines.filter { dl ->
+            val dDate = parseFlexibleDate(dl.dateString) ?: dl.date
+            dDate.isBefore(today) && !isDeadlineMetBySubmissions(dl, institutionSubmissions)
         }
-        val subtitle = if (pendingCount == 0) "All Caught Up" else "Due Soon"
-        Triple("Pending Submissions", pendingCount, subtitle)
+
+        // Upcoming Submissions: Deadlines due within the next 30 days that are not submitted
+        val dueSoonDeadlines = deadlines.filter { dl ->
+            val dDate = parseFlexibleDate(dl.dateString) ?: dl.date
+            !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow) && !isDeadlineMetBySubmissions(dl, institutionSubmissions)
+        }
+
+        val totalOutstanding = overdueDeadlines.size + dueSoonDeadlines.size
+
+        if (overdueDeadlines.isNotEmpty()) {
+            val subtitle = if (dueSoonDeadlines.isNotEmpty()) {
+                "${overdueDeadlines.size} Overdue • ${dueSoonDeadlines.size} Due"
+            } else {
+                "${overdueDeadlines.size} Overdue"
+            }
+            Triple("Outstanding Reports", totalOutstanding, subtitle)
+        } else if (dueSoonDeadlines.isNotEmpty()) {
+            Triple("Pending Submissions", dueSoonDeadlines.size, "Due Soon")
+        } else {
+            Triple("Pending Submissions", 0, "All Caught Up")
+        }
     }
 
     Row(
@@ -536,9 +561,10 @@ fun StatItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (!subtitle.isNullOrBlank()) {
-                val subtitleColor = when (subtitle) {
-                    "All Caught Up" -> Color(0xFF2E7D32)
-                    "Due Soon" -> Color(0xFFE65100)
+                val subtitleColor = when {
+                    subtitle.contains("Overdue", ignoreCase = true) -> MaterialTheme.colorScheme.error
+                    subtitle == "All Caught Up" -> Color(0xFF2E7D32)
+                    subtitle == "Due Soon" -> Color(0xFFE65100)
                     else -> MaterialTheme.colorScheme.outline
                 }
                 Text(

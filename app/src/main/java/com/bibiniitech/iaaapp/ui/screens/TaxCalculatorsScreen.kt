@@ -55,7 +55,7 @@ fun TaxCalculatorsScreen(navController: androidx.navigation.NavController? = nul
         )
 
         Text(
-            text = "Quick estimation tools for Withholding Taxes and GRA Payroll PAYE tax brackets.",
+            text = "Quick estimation tools for Withholding Taxes, GRA Payroll PAYE tax brackets, and VAT & Statutory Levies.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
@@ -81,29 +81,32 @@ fun TaxCalculatorsScreen(navController: androidx.navigation.NavController? = nul
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
+                TabRow(
+                    selectedTabIndex = when (activeCalculator) {
+                        "wht" -> 0
+                        "payroll" -> 1
+                        "vat" -> 2
+                        else -> 0
+                    },
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
+                    Tab(
+                        selected = activeCalculator == "wht",
                         onClick = { activeCalculator = "wht" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (activeCalculator == "wht") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (activeCalculator == "wht") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Text("Withholding Tax")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
+                        text = { Text("Withholding Tax", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) }
+                    )
+                    Tab(
+                        selected = activeCalculator == "payroll",
                         onClick = { activeCalculator = "payroll" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (activeCalculator == "payroll") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (activeCalculator == "payroll") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Text("Payroll & PAYE")
-                    }
+                        text = { Text("Payroll & PAYE", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) }
+                    )
+                    Tab(
+                        selected = activeCalculator == "vat",
+                        onClick = { activeCalculator = "vat" },
+                        text = { Text("VAT & Levies", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) }
+                    )
                 }
 
                 Surface(
@@ -111,10 +114,10 @@ fun TaxCalculatorsScreen(navController: androidx.navigation.NavController? = nul
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surface
                 ) {
-                    if (activeCalculator == "wht") {
-                        WithholdingCalculator()
-                    } else {
-                        PayrollCalculator()
+                    when (activeCalculator) {
+                        "wht" -> WithholdingCalculator()
+                        "payroll" -> PayrollCalculator()
+                        "vat" -> VatCalculator()
                     }
                 }
             }

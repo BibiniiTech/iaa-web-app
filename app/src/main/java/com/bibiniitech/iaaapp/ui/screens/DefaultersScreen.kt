@@ -150,12 +150,13 @@ private fun normalizeText(str: String?): String {
 }
 
 private fun matchesReport(submission: SubmissionRecord, report: ReportDef): Boolean {
-    if (submission.category.isNotEmpty() && submission.category != report.category) {
+    if (submission.category.isNotEmpty() && submission.category != report.category && report.category != "other") {
         return false
     }
 
     val normRepName = normalizeText(submission.reportName)
     val normCategory = normalizeText(submission.category)
+    val normReportTitle = normalizeText(report.title)
 
     if (report.category == "annual") {
         if (report.id == "annual_workplan") {
@@ -178,26 +179,38 @@ private fun matchesReport(submission: SubmissionRecord, report: ReportDef): Bool
         report.id.contains("1") -> "1st"
         report.id.contains("2") -> "2nd"
         report.id.contains("3") -> "3rd"
-        else -> "4th"
+        report.id.contains("4") -> "4th"
+        else -> ""
     }
 
-    val matchesQuarter = (targetQuarter.isNotEmpty() && (normCategory.contains(targetQuarter) || normRepName.contains(targetQuarter))) ||
-            normCategory.contains(altQuarter) ||
-            normRepName.contains(altQuarter)
+    if (targetQuarter.isNotEmpty() || altQuarter.isNotEmpty()) {
+        val matchesQuarter = (targetQuarter.isNotEmpty() && (normCategory.contains(targetQuarter) || normRepName.contains(targetQuarter))) ||
+                (altQuarter.isNotEmpty() && (normCategory.contains(altQuarter) || normRepName.contains(altQuarter)))
 
-    if (!matchesQuarter) return false
+        if (matchesQuarter) {
+            if (report.category == "ccc") {
+                return normRepName.contains("ccc") || submission.category == "ccc"
+            }
+            if (report.category == "soi") {
+                return normRepName.contains("soi") || normRepName.contains("status") || submission.category == "soi"
+            }
+            if (report.category == "quarterly") {
+                return !normRepName.contains("soi") && !normRepName.contains("ccc")
+            }
+            return true
+        }
+    }
 
-    if (report.category == "ccc") {
-        return normRepName.contains("ccc") || submission.category == "ccc"
+    // Dynamic and additional administrator reports
+    if (normRepName.isNotEmpty() && (normRepName.contains(normReportTitle) || normReportTitle.contains(normRepName))) {
+        return true
     }
-    if (report.category == "soi") {
-        return normRepName.contains("soi") || normRepName.contains("status") || submission.category == "soi"
-    }
-    if (report.category == "quarterly") {
-        return !normRepName.contains("soi") && !normRepName.contains("ccc")
+    if (submission.category == "other" || report.category == "other") {
+        val keywords = normReportTitle.chunked(4).filter { it.length >= 4 }
+        if (keywords.any { normRepName.contains(it) }) return true
     }
 
-    return true
+    return false
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -249,6 +262,7 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
     }
 
     val submissions = remember { mutableStateListOf<SubmissionRecord>() }
+    val rawDeadlines = remember { mutableStateListOf<SubmissionDeadline>() }
     val deadlinesMap = remember { mutableStateMapOf<String, String>() }
 
     val expandedCategories = remember { mutableStateMapOf<String, Boolean>() }
@@ -264,6 +278,8 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
             if (refresh) isRefreshing = true else isLoading = true
             try {
                 val deadlinesList = FirebaseHelper.getDeadlines()
+                rawDeadlines.clear()
+                rawDeadlines.addAll(deadlinesList)
                 deadlinesMap.clear()
                 for (d in deadlinesList) {
                     if (d.report.isNotEmpty() && d.dateString.isNotEmpty()) {
@@ -287,20 +303,76 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
         loadData()
     }
 
+    // Dynamic Category Groups: Merges standard statutory deadlines with any added by Administrator
+    val dynamicCategoryGroups = remember(rawDeadlines.size, rawDeadlines.toList()) {
+        val groups = CATEGORY_GROUPS_DEF.map { group ->
+            CategoryGroupDef(group.id, group.title, group.reports.toMutableList())
+        }.toMutableList()
+
+        val existingReportNorms = CATEGORY_GROUPS_DEF.flatMap { it.reports }.map { normalizeText(it.title) }.toSet()
+        val customReports = mutableListOf<ReportDef>()
+
+        for (d in rawDeadlines) {
+            val norm = normalizeText(d.report)
+            val matchesExisting = existingReportNorms.any { it == norm || norm.contains(it) || it.contains(norm) }
+            if (!matchesExisting && d.report.isNotBlank() && d.dateString.isNotBlank()) {
+                val lower = d.report.lowercase()
+                val category = when {
+                    lower.contains("ccc") || lower.contains("commitment") -> "ccc"
+                    lower.contains("status") || lower.contains("implementation") || lower.contains("soi") -> "soi"
+                    lower.contains("quarter") -> "quarterly"
+                    lower.contains("annual") || lower.contains("workplan") || lower.contains("strategic") -> "annual"
+                    else -> "other"
+                }
+                val quarterId = when {
+                    lower.contains("1st") || lower.contains("first") -> "First"
+                    lower.contains("2nd") || lower.contains("second") -> "Second"
+                    lower.contains("3rd") || lower.contains("third") -> "Third"
+                    lower.contains("4th") || lower.contains("fourth") -> "Fourth"
+                    else -> ""
+                }
+                val customDef = ReportDef(
+                    id = "custom_" + norm.take(20) + "_" + d.dateString.replace("-", ""),
+                    title = d.report,
+                    category = category,
+                    defaultDeadline = d.dateString,
+                    quarterIdentifier = quarterId
+                )
+
+                val targetGroup = groups.firstOrNull { it.id == category }
+                if (targetGroup != null) {
+                    (targetGroup.reports as MutableList<ReportDef>).add(customDef)
+                } else {
+                    customReports.add(customDef)
+                }
+            }
+        }
+
+        if (customReports.isNotEmpty()) {
+            groups.add(CategoryGroupDef("additional", "Additional & Special Statutory Deadlines", customReports))
+        }
+
+        groups
+    }
+
     // Process compliance data per report definition
     val today = remember { LocalDate.now() }
 
-    val complianceData = remember(submissions.size, deadlinesMap.size, allInstitutions) {
+    val complianceData = remember(submissions.size, deadlinesMap.size, allInstitutions, dynamicCategoryGroups) {
         val result = mutableMapOf<String, ReportCompliance>()
 
-        for (group in CATEGORY_GROUPS_DEF) {
+        for (group in dynamicCategoryGroups) {
             for (rep in group.reports) {
                 val normTitle = normalizeText(rep.title)
                 val dateString = deadlinesMap[normTitle] ?: rep.defaultDeadline
                 val deadlineDate = try {
                     LocalDate.parse(dateString)
                 } catch (_: Exception) {
-                    LocalDate.parse(rep.defaultDeadline)
+                    try {
+                        LocalDate.parse(rep.defaultDeadline)
+                    } catch (_: Exception) {
+                        today
+                    }
                 }
 
                 val isElapsed = today.isAfter(deadlineDate)
@@ -443,7 +515,7 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
                 }
 
                 // Categories Accordion Stack
-                CATEGORY_GROUPS_DEF.forEach { group ->
+                dynamicCategoryGroups.forEach { group ->
                     val isCatExpanded = expandedCategories[group.id] == true
 
                     // Calculate category totals
