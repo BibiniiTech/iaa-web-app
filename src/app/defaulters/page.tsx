@@ -240,29 +240,41 @@ function matchesReport(submission: SubmissionRecord, report: ReportDefinition): 
                      report.id.includes('2') ? '2nd' :
                      report.id.includes('3') ? '3rd' : '4th';
 
-  const matchesQuarter =
-    (targetQuarter && (normPeriod.includes(targetQuarter) || normRepName.includes(targetQuarter))) ||
-    normPeriod.includes(altQuarter) ||
-    normRepName.includes(altQuarter);
+  if (targetQuarter || altQuarter) {
+    const matchesQuarter =
+      (targetQuarter && (normPeriod.includes(targetQuarter) || normRepName.includes(targetQuarter))) ||
+      normPeriod.includes(altQuarter) ||
+      normRepName.includes(altQuarter);
 
-  if (!matchesQuarter) return false;
+    if (matchesQuarter) {
+      if (report.category === 'ccc') {
+        return normRepName.includes('ccc') || submission.category === 'ccc';
+      }
+      if (report.category === 'soi') {
+        return normRepName.includes('soi') || normRepName.includes('status') || submission.category === 'soi';
+      }
+      if (report.category === 'quarterly') {
+        return !normRepName.includes('soi') && !normRepName.includes('ccc');
+      }
+      return true;
+    }
+  }
 
-  if (report.category === 'ccc') {
-    return normRepName.includes('ccc') || submission.category === 'ccc';
+  // Dynamic and additional administrator reports
+  const normReportTitle = normalizeText(report.title);
+  if (normRepName && (normRepName.includes(normReportTitle) || normReportTitle.includes(normRepName))) {
+    return true;
   }
-  if (report.category === 'soi') {
-    return normRepName.includes('soi') || normRepName.includes('status') || submission.category === 'soi';
-  }
-  if (report.category === 'quarterly') {
-    // Exclude SOI or CCC if marked in quarterly
-    return !normRepName.includes('soi') && !normRepName.includes('ccc');
+  if (submission.category === 'other' || (report.category as string) === 'other') {
+    if (normRepName.length > 3 && normReportTitle.includes(normRepName)) return true;
   }
 
-  return true;
+  return false;
 }
 
 export default function DefaultersPage() {
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
+  const [rawDeadlines, setRawDeadlines] = useState<DeadlineConfig[]>([]);
   const [configuredDeadlines, setConfiguredDeadlines] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -343,10 +355,12 @@ export default function DefaultersPage() {
 
       // Parse deadlines config if customized
       const deadMap: Record<string, string> = {};
+      let parsedDeadlines: DeadlineConfig[] = [];
       if (deadlinesData?.json) {
         try {
           const parsed = JSON.parse(deadlinesData.json) as DeadlineConfig[];
           if (Array.isArray(parsed)) {
+            parsedDeadlines = parsed;
             for (const d of parsed) {
               if (d.report && d.dateString) {
                 deadMap[normalizeText(d.report)] = d.dateString;
@@ -357,6 +371,7 @@ export default function DefaultersPage() {
           // ignore parse errors
         }
       }
+      setRawDeadlines(parsedDeadlines);
       setConfiguredDeadlines(deadMap);
 
       const records: SubmissionRecord[] = subSnap.docs.map((docSnap) => {
@@ -415,6 +430,69 @@ export default function DefaultersPage() {
     [configuredDeadlines]
   );
 
+  // Dynamic Category Groups: Merges standard statutory deadlines with any added by Administrator
+  const dynamicCategoryGroups = useMemo<CategoryGroup[]>(() => {
+    const groups: CategoryGroup[] = CATEGORY_GROUPS.map(g => ({
+      id: g.id,
+      title: g.title,
+      reports: [...g.reports],
+    }));
+
+    const existingReportNorms = new Set(
+      CATEGORY_GROUPS.flatMap(g => g.reports).map(r => normalizeText(r.title))
+    );
+    const customReports: ReportDefinition[] = [];
+
+    for (const d of rawDeadlines) {
+      const norm = normalizeText(d.report);
+      const matchesExisting = Array.from(existingReportNorms).some(
+        ex => ex === norm || norm.includes(ex) || ex.includes(norm)
+      );
+
+      if (!matchesExisting && d.report?.trim() && d.dateString?.trim()) {
+        const lower = d.report.toLowerCase();
+        const category: 'quarterly' | 'soi' | 'ccc' | 'annual' =
+          lower.includes('ccc') || lower.includes('commitment') ? 'ccc'
+          : lower.includes('status') || lower.includes('implementation') || lower.includes('soi') ? 'soi'
+          : lower.includes('quarter') ? 'quarterly'
+          : 'annual';
+
+        const quarterId =
+          lower.includes('1st') || lower.includes('first') ? 'First'
+          : lower.includes('2nd') || lower.includes('second') ? 'Second'
+          : lower.includes('3rd') || lower.includes('third') ? 'Third'
+          : lower.includes('4th') || lower.includes('fourth') ? 'Fourth'
+          : undefined;
+
+        const customDef: ReportDefinition = {
+          id: `custom_${norm.slice(0, 20)}_${d.dateString.replace(/-/g, '')}`,
+          title: d.report,
+          category,
+          defaultDeadline: d.dateString,
+          reportNamePattern: d.report,
+          quarterIdentifier: quarterId,
+        };
+
+        const targetGroup = groups.find(g => g.id === category);
+        if (targetGroup) {
+          targetGroup.reports.push(customDef);
+        } else {
+          customReports.push(customDef);
+        }
+      }
+    }
+
+    if (customReports.length > 0) {
+      groups.push({
+        id: 'additional',
+        title: 'Additional & Special Statutory Deadlines',
+        reports: customReports,
+      });
+    }
+
+    return groups;
+  }, [rawDeadlines]);
+
   // Calculate compliance data for each report definition
   const complianceData = useMemo(() => {
     const reportMap = new Map<
@@ -442,7 +520,7 @@ export default function DefaultersPage() {
 
     const now = new Date();
 
-    for (const group of CATEGORY_GROUPS) {
+    for (const group of dynamicCategoryGroups) {
       for (const rep of group.reports) {
         const { dateString, deadlineDate, isElapsed } = getResolvedDeadline(rep);
 
@@ -506,7 +584,7 @@ export default function DefaultersPage() {
     }
 
     return reportMap;
-  }, [allInstitutions, getResolvedDeadline, submissions]);
+  }, [allInstitutions, getResolvedDeadline, submissions, dynamicCategoryGroups]);
 
   // Overall totals across elapsed reports
   const summaryTotals = useMemo(() => {
@@ -604,7 +682,7 @@ export default function DefaultersPage() {
 
       {/* Main Categories Accordion Stack (Collapsed by Default) */}
       <div className={styles.categoriesStack}>
-        {CATEGORY_GROUPS.map((group) => {
+        {dynamicCategoryGroups.map((group) => {
           const isCategoryExpanded = Boolean(expandedCategories[group.id]);
 
           // Category overview counts

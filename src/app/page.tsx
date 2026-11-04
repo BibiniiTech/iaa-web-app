@@ -68,7 +68,12 @@ function isDeadlineMetBySubmissions(deadlineReport: string, submissions: Record<
       return (sub.category === 'quarterly' || normRepName.includes('quarterly') || normRepName.includes('internalaudit')) &&
              !normRepName.includes('soi') && !normRepName.includes('ccc') && !normRepName.includes('status');
     }
-    return sub.category === 'annual' || normRepName.includes('annual') || normRepName.includes('recommendation');
+    if (normDeadline.includes('workplan') || normDeadline.includes('strategic') || normDeadline.includes('annual') || normDeadline.includes('performance')) {
+      return sub.category === 'annual' || normRepName.includes('annual') || normRepName.includes('recommendation') || normRepName.includes('workplan') || normRepName.includes('strategic');
+    }
+    // Dynamic Administrator report matching
+    return (normRepName.length > 0 && (normRepName.includes(normDeadline) || normDeadline.includes(normRepName))) ||
+           (sub.category === 'other' && normRepName.split(' ').filter(w => w.length > 3).some(w => normDeadline.includes(w)));
   });
 }
 
@@ -213,10 +218,35 @@ export default function Home() {
       let submissionsSubtitle = 'Next 30 Days';
 
       if (!isAdminOrNoInst) {
-        submissionsLabel = 'Pending Submissions';
-        const pendingCount = upcomingDeadlines.filter(d => !isDeadlineMetBySubmissions(d.report, institutionSubmissions)).length;
-        submissionCount = pendingCount;
-        submissionsSubtitle = pendingCount === 0 ? 'All Caught Up' : 'Due Soon';
+        // Persistent Overdue Submissions: Deadlines in the past not submitted by user's institution
+        const overdueDeadlines = deadlines.filter(d => {
+          const dDate = parseLocalDate(d.dateString);
+          return dDate && dDate < today && !isDeadlineMetBySubmissions(d.report, institutionSubmissions);
+        });
+
+        // Upcoming Submissions: Deadlines due in next 30 days not submitted by user's institution
+        const dueSoonDeadlines = deadlines.filter(d => {
+          const dDate = parseLocalDate(d.dateString);
+          return dDate && dDate >= today && dDate <= thirtyDaysFromNow && !isDeadlineMetBySubmissions(d.report, institutionSubmissions);
+        });
+
+        const totalOutstanding = overdueDeadlines.length + dueSoonDeadlines.length;
+
+        if (overdueDeadlines.length > 0) {
+          submissionsLabel = 'Outstanding Reports';
+          submissionCount = totalOutstanding;
+          submissionsSubtitle = dueSoonDeadlines.length > 0
+            ? `${overdueDeadlines.length} Overdue • ${dueSoonDeadlines.length} Due`
+            : `${overdueDeadlines.length} Overdue`;
+        } else if (dueSoonDeadlines.length > 0) {
+          submissionsLabel = 'Pending Submissions';
+          submissionCount = dueSoonDeadlines.length;
+          submissionsSubtitle = 'Due Soon';
+        } else {
+          submissionsLabel = 'Pending Submissions';
+          submissionCount = 0;
+          submissionsSubtitle = 'All Caught Up';
+        }
       }
 
       setCounts({
@@ -333,7 +363,7 @@ export default function Home() {
                 fontSize: '0.65rem',
                 fontWeight: 600,
                 marginTop: '2px',
-                color: counts.submissionsSubtitle === 'All Caught Up' ? '#2e7d32' : counts.submissionsSubtitle === 'Due Soon' ? '#e65100' : 'var(--text-secondary)'
+                color: counts.submissionsSubtitle.includes('Overdue') ? '#d32f2f' : counts.submissionsSubtitle === 'All Caught Up' ? '#2e7d32' : counts.submissionsSubtitle === 'Due Soon' ? '#e65100' : 'var(--text-secondary)'
               }}
             >
               {counts.submissionsSubtitle}
