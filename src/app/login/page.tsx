@@ -76,7 +76,7 @@ export default function LoginPage() {
       role: 'demo',
       isProfileComplete: true
     }));
-    router.push('/');
+    window.location.href = '/';
   };
 
   const handleForgotPassword = async () => {
@@ -122,6 +122,47 @@ export default function LoginPage() {
           <p className={styles.authSubtitle}>
             This app is designed for use by Internal Auditors of MDAs, SOEs, RCCs & MMDAs in Ghana under the supervision of the Internal Audit Agency
           </p>
+
+          {/* Prominent Demo / Investor Access Card */}
+          <div style={{
+            width: '100%',
+            backgroundColor: 'rgba(217, 119, 6, 0.1)',
+            border: '1.5px solid #d97706',
+            borderRadius: '12px',
+            padding: '14px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 700, fontSize: '0.92rem' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Investor / Evaluator Preview</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#78350f', textAlign: 'center' }}>
+              Explore all features with a safe, read-only demo account (no sign-up required).
+            </p>
+            <button
+              type="button"
+              onClick={handleDemoAccess}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                backgroundColor: '#d97706',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)'
+              }}
+            >
+              Enter Demo Mode (One-Click)
+            </button>
+          </div>
 
           {error && <div className={styles.errorMessage}>{error}</div>}
           {message && <div className={styles.successMessage}>{message}</div>}
@@ -196,6 +237,11 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="20" />
             <span>Continue with Google</span>
+          </button>
+
+          <button type="button" className={styles.demoButton} onClick={handleDemoAccess}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Explore Demo / Investor Access</span>
           </button>
 
           <div className={styles.divider}>

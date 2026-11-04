@@ -137,10 +137,23 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
   const [showPfmLeague, setShowPfmLeague] = useState(true);
   const [showVoting, setShowVoting] = useState(false);
+  const [isDemoUser, setIsDemoUser] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const demoStr = sessionStorage.getItem('iaa_demo_user');
+      if (demoStr) {
+        setIsDemoUser(true);
+        setShowDisclaimer(false);
+        setDisclaimerAccepted(true);
+        setShowPfmLeague(true);
+        setShowVoting(true);
+        setLoading(false);
+        return;
+      }
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -213,9 +226,13 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
   const handleSignOut = async () => {
     setIsDrawerOpen(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('iaa_demo_user');
+    }
+    setIsDemoUser(false);
     invalidateAllCaches();
     await signOut(auth);
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   const closeDrawer = () => setIsDrawerOpen(false);
@@ -231,7 +248,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (!user) {
+  if (!user && !isDemoUser) {
     return isAuthPage ? <main className={styles.authOnlyContent}>{children}</main> : <LoginPage />;
   }
 

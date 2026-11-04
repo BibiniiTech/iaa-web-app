@@ -108,6 +108,35 @@ export default function SignUpPage() {
           Already have an account?
           <Link href="/login" className={styles.footerLink}>Sign In</Link>
         </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.setItem('iaa_demo_user', JSON.stringify({
+              uid: 'demo_investor_evaluator',
+              firstName: 'Guest',
+              surname: 'Investor',
+              email: 'demo.investor@iaa.gov.gh',
+              institution: 'Ministry of Finance (Evaluation Sandbox)',
+              role: 'demo',
+              isProfileComplete: true
+            }));
+            window.location.href = '/';
+          }}
+          style={{
+            marginTop: '16px',
+            background: 'none',
+            border: 'none',
+            color: '#b45309',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            textAlign: 'center'
+          }}
+        >
+          Evaluating or testing? Explore Demo Access (No account needed)
+        </button>
       </div>
     </div>
   );
