@@ -62,7 +62,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Submissions : Screen("submissions?scroll={scroll}", "Submissions", Icons.AutoMirrored.Filled.Send) {
         fun createRoute(scroll: String? = null) = if (scroll != null) "submissions?scroll=$scroll" else "submissions"
     }
-    data object Defaulters : Screen("defaulters", "Defaulters' List", Icons.Default.Warning)
+    data object Defaulters : Screen("defaulters", "Submission Monitor", Icons.Default.Warning)
     data object QuarterlySubmission : Screen("quarterly_submission", "Quarterly Submission", Icons.AutoMirrored.Filled.Send)
     data object AnnualSubmission : Screen("annual_submission", "Annual Submission", Icons.AutoMirrored.Filled.Send)
     data object CCCReviewSubmission : Screen("ccc_review_submission", "CCC Review Submission", Icons.AutoMirrored.Filled.Send)

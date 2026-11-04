@@ -429,7 +429,7 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Defaulters' List", fontWeight = FontWeight.Bold) },
+                title = { Text("Submission Monitor", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
