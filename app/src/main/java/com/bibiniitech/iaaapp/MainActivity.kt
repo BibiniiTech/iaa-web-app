@@ -1,3 +1,20 @@
+/*
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL PROPERTY OF CLEMENT KOFI ACHEAMPONG
+ * (BIBINII TECH) - ALL RIGHTS RESERVED.
+ *
+ * Application: Internal Auditing Support & Statutory Reporting Platform (IAA App)
+ * Author: Clement Kofi Acheampong (Internal Auditor & Software Engineer)
+ * Copyright (c) 2024-2026 Clement Kofi Acheampong. All Rights Reserved.
+ *
+ * NOTICE: All information, source code, algorithms, and data designs contained
+ * herein are protected under the Ghana Copyright Act, 2005 (Act 690) and
+ * international intellectual property treaties. Unauthorized copying,
+ * decompilation, reverse engineering, redistribution, or modification of this
+ * file via any medium is strictly prohibited without prior written consent.
+ * ============================================================================
+ */
+
 package com.bibiniitech.iaaapp
 
 import android.Manifest
@@ -74,7 +91,7 @@ class MainActivity : ComponentActivity() {
             "pfm_league_mdas" to "",
             "pfm_league_mmdas" to "",
             "submission_deadlines" to "", // Empty string means use local hardcoded defaults
-            "brevo_api_key" to "",
+            "brevo_api_key" to BuildConfig.FALLBACK_BREVO_API_KEY,
         )
         remoteConfig.setDefaultsAsync(defaults)
         

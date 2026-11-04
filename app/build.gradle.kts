@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -17,6 +20,14 @@ android {
         versionName = "2.8.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val localProps = Properties()
+        val localPropFile = rootProject.file("local.properties")
+        if (localPropFile.exists()) {
+            FileInputStream(localPropFile).use { localProps.load(it) }
+        }
+        val brevoKey = localProps.getProperty("BREVO_API_KEY_MOBILE") ?: ""
+        buildConfigField("String", "FALLBACK_BREVO_API_KEY", "\"$brevoKey\"")
     }
 
     signingConfigs {

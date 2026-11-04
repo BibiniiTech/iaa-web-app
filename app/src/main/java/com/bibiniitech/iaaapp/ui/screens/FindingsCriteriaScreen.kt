@@ -1,3 +1,20 @@
+/*
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL PROPERTY OF CLEMENT KOFI ACHEAMPONG
+ * (BIBINII TECH) - ALL RIGHTS RESERVED.
+ *
+ * Application: Internal Auditing Support & Statutory Reporting Platform (IAA App)
+ * Author: Clement Kofi Acheampong (Internal Auditor & Software Engineer)
+ * Copyright (c) 2024-2026 Clement Kofi Acheampong. All Rights Reserved.
+ *
+ * NOTICE: All information, source code, algorithms, and data designs contained
+ * herein are protected under the Ghana Copyright Act, 2005 (Act 690) and
+ * international intellectual property treaties. Unauthorized copying,
+ * decompilation, reverse engineering, redistribution, or modification of this
+ * file via any medium is strictly prohibited without prior written consent.
+ * ============================================================================
+ */
+
 package com.bibiniitech.iaaapp.ui.screens
 
 import android.content.Context
@@ -37,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import com.bibiniitech.iaaapp.AssetCryptoUtils
 import com.bibiniitech.iaaapp.ui.theme.IAAAppTheme
 import com.bibiniitech.iaaapp.ui.theme.ThemePreviews
 import com.google.gson.Gson
@@ -65,13 +83,11 @@ fun FindingsCriteriaScreen(navController: androidx.navigation.NavController? = n
             isLoadingDatabase = true
             withContext(Dispatchers.IO) {
                 try {
-                    val jsonString = context.assets.open("audit_findings.json")
-                        .bufferedReader().use { it.readText() }
+                    val jsonString = AssetCryptoUtils.readAssetString(context, "audit_findings.enc", "audit_findings.json")
                     val listType = object : TypeToken<List<AuditFinding>>() {}.type
                     val findings: List<AuditFinding> = Gson().fromJson(jsonString, listType)
 
-                    val lawsJsonString = context.assets.open("law_details.json")
-                        .bufferedReader().use { it.readText() }
+                    val lawsJsonString = AssetCryptoUtils.readAssetString(context, "law_details.enc", "law_details.json")
                     val mapType = object : TypeToken<Map<String, String>>() {}.type
                     val laws: Map<String, String> = Gson().fromJson(lawsJsonString, mapType)
                     

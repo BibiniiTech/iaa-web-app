@@ -1,3 +1,20 @@
+/*
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL PROPERTY OF CLEMENT KOFI ACHEAMPONG
+ * (BIBINII TECH) - ALL RIGHTS RESERVED.
+ *
+ * Application: Internal Auditing Support & Statutory Reporting Platform (IAA App)
+ * Author: Clement Kofi Acheampong (Internal Auditor & Software Engineer)
+ * Copyright (c) 2024-2026 Clement Kofi Acheampong. All Rights Reserved.
+ *
+ * NOTICE: All information, source code, algorithms, and data designs contained
+ * herein are protected under the Ghana Copyright Act, 2005 (Act 690) and
+ * international intellectual property treaties. Unauthorized copying,
+ * decompilation, reverse engineering, redistribution, or modification of this
+ * file via any medium is strictly prohibited without prior written consent.
+ * ============================================================================
+ */
+
 package com.bibiniitech.iaaapp.ui.screens
 
 import android.widget.Toast
@@ -337,6 +354,43 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Continue with Google",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Demo Access for Investors / Evaluators
+            OutlinedButton(
+                onClick = {
+                    val demoUser = FirebaseHelper.enterDemoMode()
+                    Toast.makeText(context, "Welcome! Running in Demo Exploration Mode (Cloud writes disabled).", Toast.LENGTH_LONG).show()
+                    onLoginSuccess(true, demoUser.email, demoUser.firstName)
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f),
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = "Demo Access",
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Explore Demo / Investor Access",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium
                     )

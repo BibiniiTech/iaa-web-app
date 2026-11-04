@@ -1,3 +1,20 @@
+/*
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL PROPERTY OF CLEMENT KOFI ACHEAMPONG
+ * (BIBINII TECH) - ALL RIGHTS RESERVED.
+ *
+ * Application: Internal Auditing Support & Statutory Reporting Platform (IAA App)
+ * Author: Clement Kofi Acheampong (Internal Auditor & Software Engineer)
+ * Copyright (c) 2024-2026 Clement Kofi Acheampong. All Rights Reserved.
+ *
+ * NOTICE: All information, source code, algorithms, and data designs contained
+ * herein are protected under the Ghana Copyright Act, 2005 (Act 690) and
+ * international intellectual property treaties. Unauthorized copying,
+ * decompilation, reverse engineering, redistribution, or modification of this
+ * file via any medium is strictly prohibited without prior written consent.
+ * ============================================================================
+ */
+
 package com.bibiniitech.iaaapp
 
 import android.content.Context
@@ -13,8 +30,18 @@ object SecurityUtils {
      * Checks if the device is likely rooted.
      */
     fun isDeviceRooted(): Boolean {
-        val paths = arrayOf(
+        // Step 1: Check known superuser management APKs
+        val superuserApks = arrayOf(
             "/system/app/Superuser.apk",
+            "/system/app/SuperSU.apk",
+            "/system/app/Magisk.apk"
+        )
+        for (apk in superuserApks) {
+            if (File(apk).exists()) return true
+        }
+
+        // Step 2: Check for presence of 'su' binaries
+        val suPaths = arrayOf(
             "/sbin/su",
             "/system/bin/su",
             "/system/xbin/su",
@@ -25,21 +52,26 @@ object SecurityUtils {
             "/data/local/su",
             "/su/bin/su",
         )
-        for (path in paths) {
-            if (File(path).exists()) return true
+        val suExists = suPaths.any { File(it).exists() }
+
+        // Step 3: Calibrated for refurbished and carrier-unlocked devices
+        // Many imported or carrier-unlocked refurbished phones have dormant stub 'su' files.
+        // We only flag as rooted if an active root shell can actually execute with uid=0 root privileges.
+        if (suExists) {
+            var process: Process? = null
+            return try {
+                process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
+                val output = process.inputStream.bufferedReader().readLine() ?: ""
+                output.contains("uid=0")
+            } catch (_: Throwable) {
+                // If execution is denied (SELinux enforcing) or fails, the device is safe
+                false
+            } finally {
+                process?.destroy()
+            }
         }
-        
-        // Execute 'su' command check
-        var process: Process? = null
-        return try {
-            process = Runtime.getRuntime().exec(arrayOf("/system/xbin/which", "su"))
-            val reader = process.inputStream.bufferedReader()
-            reader.readLine() != null
-        } catch (_: Throwable) {
-            false
-        } finally {
-            process?.destroy()
-        }
+
+        return false
     }
 
     /**

@@ -21,6 +21,7 @@ local.properties
 *.keystore
 *.jks
 credentials.json
+curated_data_backup/
 
 # Build Binaries & Releases
 app/release/
@@ -50,3 +51,6 @@ all_referenced_criteria.txt
 /*.pdf
 extracted_*.json
 app/extracted_*.json
+
+*.xlsx
+*.docx

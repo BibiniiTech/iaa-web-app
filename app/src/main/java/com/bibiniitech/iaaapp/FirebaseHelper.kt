@@ -1,3 +1,20 @@
+/*
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL PROPERTY OF CLEMENT KOFI ACHEAMPONG
+ * (BIBINII TECH) - ALL RIGHTS RESERVED.
+ *
+ * Application: Internal Auditing Support & Statutory Reporting Platform (IAA App)
+ * Author: Clement Kofi Acheampong (Internal Auditor & Software Engineer)
+ * Copyright (c) 2024-2026 Clement Kofi Acheampong. All Rights Reserved.
+ *
+ * NOTICE: All information, source code, algorithms, and data designs contained
+ * herein are protected under the Ghana Copyright Act, 2005 (Act 690) and
+ * international intellectual property treaties. Unauthorized copying,
+ * decompilation, reverse engineering, redistribution, or modification of this
+ * file via any medium is strictly prohibited without prior written consent.
+ * ============================================================================
+ */
+
 package com.bibiniitech.iaaapp
 
 import android.content.Context
@@ -356,11 +373,43 @@ object FirebaseHelper {
     }
 
     fun setMockMode(enabled: Boolean) {
+        if (isDemoGuestMode) {
+            // Stay in mock mode while demo guest session is active
+            isMockMode = true
+            return
+        }
         isMockMode = enabled
         if (!enabled) {
             // If trying to disable mock mode (enable real Firebase), check if actually available
             isMockMode = (auth == null || db == null || storage == null)
         }
+    }
+
+    private var isDemoGuestMode = false
+
+    fun isDemoMode(): Boolean = isDemoGuestMode
+
+    /**
+     * Enters Demo / Investor exploration mode.
+     * Guarantees zero reads/writes to Firebase cloud quotas (100% in-memory mock isolation).
+     */
+    fun enterDemoMode(): UserProfile {
+        isDemoGuestMode = true
+        isMockMode = true // Lock in mock mode so zero Firebase network reads/writes happen
+        val demoUser = UserProfile(
+            uid = "demo_investor_evaluator",
+            firstName = "Guest",
+            surname = "Investor",
+            email = "demo.investor@iaa.gov.gh",
+            institution = "Ministry of Finance (Evaluation Sandbox)",
+            phone = "+233 544 737 870",
+            role = "demo",
+            isProfileComplete = true
+        )
+        mockCurrentUser = demoUser
+        _authState.value = demoUser
+        _isAuthInitialized.value = true
+        return demoUser
     }
 
     fun isMockEnabled(): Boolean = isMockMode
@@ -551,6 +600,13 @@ object FirebaseHelper {
     fun signOut() {
         cachedUserProfile = null
         cachedHasVotedMap.clear()
+        if (isDemoGuestMode) {
+            isDemoGuestMode = false
+            mockCurrentUser = null
+            _authState.value = null
+            isMockMode = (auth == null || db == null || storage == null)
+            return
+        }
         if (isMockMode) {
             mockCurrentUser = null
             _authState.value = null
