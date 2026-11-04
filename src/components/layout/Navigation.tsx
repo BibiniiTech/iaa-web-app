@@ -45,7 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Findings & Criteria', href: '/findings', icon: 'autoAwesome' },
   { label: 'Tax Calculator', href: '/calculators', icon: 'calculate' },
   { label: 'Submissions', href: '/submissions', icon: 'send' },
-  { label: "Defaulters' List", href: '/defaulters', icon: 'assignmentLate' },
+  { label: 'Submission Monitor', href: '/defaulters', icon: 'assignmentLate' },
   { label: 'Trainings', href: '/trainings', icon: 'school' },
   { label: 'PFM League', href: '/pfm-league', icon: 'leaderboard' },
   { label: 'Voting', href: '/voting', icon: 'howToVote' },

@@ -623,7 +623,7 @@ export default function DefaultersPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loadingWrapper}>
-          <p>Analyzing submission compliance and compiling Defaulters&apos; List...</p>
+          <p>Analyzing submission compliance and compiling Submission Monitor...</p>
         </div>
       </div>
     );
@@ -634,7 +634,7 @@ export default function DefaultersPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>
           <span className={styles.titleIcon}>⚠️</span>
-          Defaulters&apos; List
+          Submission Monitor
         </h1>
         <p className={styles.subtitle}>
           Tracking institutions that have made late submissions or have not submitted mandatory statutory reports under the Public Financial Management Act and Regulations.
