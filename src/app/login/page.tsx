@@ -66,6 +66,19 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoAccess = () => {
+    sessionStorage.setItem('iaa_demo_user', JSON.stringify({
+      uid: 'demo_investor_evaluator',
+      firstName: 'Guest',
+      surname: 'Investor',
+      email: 'demo.investor@iaa.gov.gh',
+      institution: 'Ministry of Finance (Evaluation Sandbox)',
+      role: 'demo',
+      isProfileComplete: true
+    }));
+    router.push('/');
+  };
+
   const handleForgotPassword = async () => {
     if (resettingPassword || resetCooldown > 0) return;
     if (!email) {

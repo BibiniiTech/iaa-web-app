@@ -231,6 +231,19 @@ export default function Home() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const demoStr = sessionStorage.getItem('iaa_demo_user');
+      if (demoStr) {
+        try {
+          const demoUser = JSON.parse(demoStr);
+          setProfile(demoUser);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
     let syncUnsub: (() => void) | null = null;
     const authUnsub = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -254,6 +267,23 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
+      {profile && (profile as Record<string, unknown>).role === 'demo' && (
+        <div style={{
+          backgroundColor: '#fef3c7',
+          color: '#92400e',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          margin: '16px auto',
+          maxWidth: '1200px',
+          width: 'calc(100% - 32px)',
+          textAlign: 'center',
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          border: '1px solid #fde68a'
+        }}>
+          Investor / Guest Demo Mode: All features are accessible; statutory submissions and cloud writes are safely isolated.
+        </div>
+      )}
       {/* Header with Logo and Gradient */}
       <header className={styles.header}>
         <div className={styles.logoContainer}>

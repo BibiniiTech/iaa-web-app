@@ -255,3 +255,39 @@
     background-color: rgba(223, 185, 110, 0.05);
   }
 }
+
+
+.demoButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1.5px solid #d97706;
+  background-color: rgba(217, 119, 6, 0.08);
+  color: #b45309;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: all 0.2s ease;
+}
+
+.demoButton:hover {
+  background-color: rgba(217, 119, 6, 0.16);
+}
+
+.demoLink {
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: #b45309;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-align: center;
+  padding: 4px;
+}
