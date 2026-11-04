@@ -122,8 +122,54 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp, top = 8.dp)
+                modifier = Modifier.padding(bottom = 16.dp, top = 8.dp)
             )
+
+            // Prominent Top Demo / Investor Card (Immediately Visible)
+            Card(
+                onClick = {
+                    val demoUser = FirebaseHelper.enterDemoMode()
+                    Toast.makeText(context, "Welcome! Running in Demo Exploration Mode (Cloud writes disabled).", Toast.LENGTH_LONG).show()
+                    onLoginSuccess(true, demoUser.email, demoUser.firstName)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = "Demo Access",
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Explore Demo / Investor Access",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            text = "Tap to explore all features (No sign-in required)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
 
             // Email Input
             OutlinedTextField(
