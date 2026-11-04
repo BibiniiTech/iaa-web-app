@@ -54,3 +54,5 @@ app/extracted_*.json
 
 *.xlsx
 *.docx
+
+google-services.json
