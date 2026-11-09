@@ -238,7 +238,20 @@ fun OtherReportsSubmissionScreen(onBack: () -> Unit) {
             }
 
             if (institutionType.isNotEmpty()) {
-                val optionsList = specialReportsList.map { it.report } + listOf("Other (Specify custom report name)")
+                val currentInst = when (institutionType) {
+                    "MDA", "SOE" -> institutionText
+                    "RCC" -> if (selectedRegion.isNotEmpty()) "$selectedRegion RCC" else ""
+                    "MMDA" -> selectedMmda
+                    else -> institutionText
+                }
+                val applicableSpecials = if (currentInst.isBlank()) {
+                    specialReportsList
+                } else {
+                    specialReportsList.filter { dl ->
+                        dl.matchesInstitution(currentInst, institutionType, selectedRegion)
+                    }
+                }
+                val optionsList = applicableSpecials.map { it.report } + listOf("Other (Specify custom report name)")
                 val currentSelection = when {
                     selectedReportOption.isNotEmpty() -> selectedReportOption
                     optionsList.isNotEmpty() -> optionsList.first()

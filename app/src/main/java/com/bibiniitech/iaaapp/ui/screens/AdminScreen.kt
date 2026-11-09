@@ -1796,7 +1796,20 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
     // Deadline Inputs
     var newDeadlineName by remember { mutableStateOf("") }
     var newDeadlineDate by remember { mutableStateOf("") } // YYYY-MM-DD
-    var newDeadlineTargetGroup by remember { mutableStateOf("ALL") }
+    val selectedTargetGroups = remember { mutableStateListOf("ALL") }
+    val selectedTargetInstitutions = remember { mutableStateListOf<String>() }
+    var activeRegion by remember { mutableStateOf(InstitutionData.REGIONS.firstOrNull() ?: "Ashanti") }
+    var instSearchText by remember { mutableStateOf("") }
+    var showInstDropdown by remember { mutableStateOf(false) }
+
+    val allInstitutionsList = remember {
+        val list = mutableListOf<String>()
+        list.addAll(InstitutionData.MDA_LIST)
+        list.addAll(InstitutionData.SOE_LIST)
+        list.addAll(InstitutionData.RCC_DATA.values)
+        InstitutionData.MMDA_DATA.values.forEach { list.addAll(it) }
+        list.distinct().sorted()
+    }
     
     // Seminar Inputs
     var semTopic by remember { mutableStateOf("") }
@@ -1849,47 +1862,260 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
                     )
                 }
 
-                Row(
+                // Target Group Filters
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        DropdownField(
-                            label = "Target Group",
-                            options = listOf("All Institutions (ALL)", "MDAs Only (MDA)", "SOEs Only (SOE)", "RCCs Only (RCC)", "MMDAs Only (MMDA)"),
-                            selectedOption = when (newDeadlineTargetGroup) {
-                                "MDA" -> "MDAs Only (MDA)"
-                                "SOE" -> "SOEs Only (SOE)"
-                                "RCC" -> "RCCs Only (RCC)"
-                                "MMDA" -> "MMDAs Only (MMDA)"
-                                else -> "All Institutions (ALL)"
-                            }
-                        ) { selected ->
-                            newDeadlineTargetGroup = when {
-                                selected.contains("MDA") && !selected.contains("MMDA") && !selected.contains("All") -> "MDA"
-                                selected.contains("SOE") -> "SOE"
-                                selected.contains("RCC") -> "RCC"
-                                selected.contains("MMDA") -> "MMDA"
-                                else -> "ALL"
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (newDeadlineName.isNotEmpty() && newDeadlineDate.isNotEmpty()) {
-                                deadlinesList.add(SubmissionDeadline(newDeadlineName, newDeadlineDate, newDeadlineTargetGroup))
-                                newDeadlineName = ""
-                                newDeadlineDate = ""
-                                newDeadlineTargetGroup = "ALL"
-                            }
-                        }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.AddCircle, contentDescription = "Add Deadline")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add")
+                        Text(
+                            text = "Target Group Filters (Check one or more criteria)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        // 1. National / General Scope
+                        Text("National / General Scope", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                selectedTargetGroups.clear()
+                                selectedTargetGroups.add("ALL")
+                                selectedTargetInstitutions.clear()
+                            }
+                        ) {
+                            Checkbox(
+                                checked = selectedTargetGroups.contains("ALL"),
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        selectedTargetGroups.clear()
+                                        selectedTargetGroups.add("ALL")
+                                        selectedTargetInstitutions.clear()
+                                    } else {
+                                        selectedTargetGroups.remove("ALL")
+                                    }
+                                }
+                            )
+                            Text("All Institutions (Universal)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Category Checkboxes Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("MDA" to "MDAs", "SOE" to "SOEs", "RCC" to "RCCs", "MMDA" to "MMDAs").forEach { (type, label) ->
+                                val key = "TYPE:$type"
+                                val isChecked = selectedTargetGroups.contains(key)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable {
+                                        selectedTargetGroups.remove("ALL")
+                                        if (isChecked) selectedTargetGroups.remove(key) else selectedTargetGroups.add(key)
+                                        if (selectedTargetGroups.isEmpty() && selectedTargetInstitutions.isEmpty()) selectedTargetGroups.add("ALL")
+                                    }
+                                ) {
+                                    Checkbox(
+                                        checked = isChecked,
+                                        onCheckedChange = { checked ->
+                                            selectedTargetGroups.remove("ALL")
+                                            if (checked) selectedTargetGroups.add(key) else selectedTargetGroups.remove(key)
+                                            if (selectedTargetGroups.isEmpty() && selectedTargetInstitutions.isEmpty()) selectedTargetGroups.add("ALL")
+                                        }
+                                    )
+                                    Text(label, fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(thickness = 0.5.dp)
+
+                        // 2. Regional Filters
+                        Text("Regional Filters (Target by Region)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        DropdownField(
+                            label = "Select Region",
+                            options = InstitutionData.REGIONS,
+                            selectedOption = activeRegion
+                        ) { reg ->
+                            activeRegion = reg
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(
+                                "REGION_ALL:$activeRegion" to "All institutions in $activeRegion",
+                                "REGION_MDA:$activeRegion" to "MDAs in $activeRegion",
+                                "REGION_MMDA:$activeRegion" to "MMDAs in $activeRegion"
+                            ).forEach { (key, label) ->
+                                val isChecked = selectedTargetGroups.contains(key)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable {
+                                        selectedTargetGroups.remove("ALL")
+                                        if (isChecked) selectedTargetGroups.remove(key) else selectedTargetGroups.add(key)
+                                        if (selectedTargetGroups.isEmpty() && selectedTargetInstitutions.isEmpty()) selectedTargetGroups.add("ALL")
+                                    }
+                                ) {
+                                    Checkbox(
+                                        checked = isChecked,
+                                        onCheckedChange = { checked ->
+                                            selectedTargetGroups.remove("ALL")
+                                            if (checked) selectedTargetGroups.add(key) else selectedTargetGroups.remove(key)
+                                            if (selectedTargetGroups.isEmpty() && selectedTargetInstitutions.isEmpty()) selectedTargetGroups.add("ALL")
+                                        }
+                                    )
+                                    Text(label, fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(thickness = 0.5.dp)
+
+                        // 3. Specific Institutions
+                        Text("Target Specific Institutions", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = instSearchText,
+                                onValueChange = {
+                                    instSearchText = it
+                                    showInstDropdown = it.length >= 2
+                                },
+                                label = { Text("Search institution name...") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            Button(
+                                onClick = {
+                                    val clean = instSearchText.trim()
+                                    if (clean.isNotBlank() && !selectedTargetInstitutions.contains(clean)) {
+                                        selectedTargetInstitutions.add(clean)
+                                        selectedTargetGroups.remove("ALL")
+                                        instSearchText = ""
+                                        showInstDropdown = false
+                                    }
+                                }
+                            ) {
+                                Text("+ Add")
+                            }
+                        }
+
+                        if (showInstDropdown && instSearchText.length >= 2) {
+                            val matches = allInstitutionsList.filter {
+                                it.contains(instSearchText, ignoreCase = true) && !selectedTargetInstitutions.contains(it)
+                            }.take(5)
+                            if (matches.isNotEmpty()) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    tonalElevation = 4.dp,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Column {
+                                        matches.forEach { match ->
+                                            Text(
+                                                text = match,
+                                                fontSize = 12.sp,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedTargetInstitutions.add(match)
+                                                        selectedTargetGroups.remove("ALL")
+                                                        instSearchText = ""
+                                                        showInstDropdown = false
+                                                    }
+                                                    .padding(8.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4. Active Target Criteria Chips
+                        if (selectedTargetGroups.isNotEmpty() || selectedTargetInstitutions.isNotEmpty()) {
+                            Text("Active Criteria:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                selectedTargetGroups.forEach { g ->
+                                    val chipLabel = when {
+                                        g == "ALL" -> "All Institutions"
+                                        g == "TYPE:MDA" -> "All MDAs"
+                                        g == "TYPE:SOE" -> "All SOEs"
+                                        g == "TYPE:RCC" -> "All RCCs"
+                                        g == "TYPE:MMDA" -> "All MMDAs"
+                                        g.startsWith("REGION_ALL:") -> "${g.removePrefix("REGION_ALL:")} (All)"
+                                        g.startsWith("REGION_MDA:") -> "${g.removePrefix("REGION_MDA:")} (MDAs)"
+                                        g.startsWith("REGION_MMDA:") -> "${g.removePrefix("REGION_MMDA:")} (MMDAs)"
+                                        else -> g
+                                    }
+                                    AssistChip(
+                                        onClick = {
+                                            if (g != "ALL") {
+                                                selectedTargetGroups.remove(g)
+                                                if (selectedTargetGroups.isEmpty() && selectedTargetInstitutions.isEmpty()) selectedTargetGroups.add("ALL")
+                                            }
+                                        },
+                                        label = { Text(chipLabel, fontSize = 11.sp) },
+                                        trailingIcon = if (g != "ALL") {
+                                            { Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(14.dp)) }
+                                        } else null
+                                    )
+                                }
+                                selectedTargetInstitutions.forEach { inst ->
+                                    AssistChip(
+                                        onClick = {
+                                            selectedTargetInstitutions.remove(inst)
+                                            if (selectedTargetInstitutions.isEmpty() && selectedTargetGroups.isEmpty()) selectedTargetGroups.add("ALL")
+                                        },
+                                        label = { Text("🏢 $inst", fontSize = 11.sp) },
+                                        trailingIcon = {
+                                            Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(14.dp))
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
+                }
+
+                Button(
+                    onClick = {
+                        if (newDeadlineName.isNotEmpty() && newDeadlineDate.isNotEmpty()) {
+                            val groupsCopy = selectedTargetGroups.toList()
+                            val instsCopy = selectedTargetInstitutions.toList()
+                            val temp = SubmissionDeadline(
+                                report = newDeadlineName.trim(),
+                                dateString = newDeadlineDate.trim(),
+                                targetGroup = "",
+                                targetGroups = groupsCopy,
+                                targetInstitutions = instsCopy
+                            )
+                            val summary = temp.formatTargetSummary()
+                            deadlinesList.add(temp.copy(targetGroup = summary))
+                            newDeadlineName = ""
+                            newDeadlineDate = ""
+                            selectedTargetGroups.clear()
+                            selectedTargetGroups.add("ALL")
+                            selectedTargetInstitutions.clear()
+                            instSearchText = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.AddCircle, contentDescription = "Add Deadline")
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Deadline")
                 }
             }
 
@@ -1905,14 +2131,7 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(dl.report, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            val targetBadge = when (dl.targetGroup) {
-                                "MDA" -> "MDAs Only"
-                                "SOE" -> "SOEs Only"
-                                "RCC" -> "RCCs Only"
-                                "MMDA" -> "MMDAs Only"
-                                else -> "All Institutions"
-                            }
-                            Text("${dl.displayDate} • Target: $targetBadge", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                            Text("${dl.displayDate} • Target: ${dl.formatTargetSummary()}", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
                         }
                         IconButton(onClick = { deadlinesList.removeAt(index) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

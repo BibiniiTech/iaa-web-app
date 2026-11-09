@@ -473,7 +473,7 @@ fun QuickStatsRow(
         } ?: ""
 
         val applicableDeadlines = deadlines.filter { dl ->
-            dl.targetGroup.isBlank() || dl.targetGroup == "ALL" || dl.targetGroup.equals(userInstType, ignoreCase = true)
+            dl.matchesInstitution(userInst, userInstType)
         }
 
         // Persistent Overdue Submissions: Deadlines in the past that were not submitted

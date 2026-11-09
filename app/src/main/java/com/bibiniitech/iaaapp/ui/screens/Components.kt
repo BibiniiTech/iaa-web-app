@@ -18,6 +18,7 @@
 package com.bibiniitech.iaaapp.ui.screens
 
 import com.bibiniitech.iaaapp.FirebaseHelper
+import com.bibiniitech.iaaapp.data.InstitutionData
 import androidx.annotation.Keep
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.foundation.background
@@ -43,9 +44,11 @@ import java.time.format.DateTimeFormatter
 
 @Keep
 data class SubmissionDeadline(
-    val report: String,
-    val dateString: String, // Used for JSON parsing
-    val targetGroup: String = "ALL" // "ALL", "MDA", "SOE", "RCC", "MMDA"
+    val report: String = "",
+    val dateString: String = "", // Used for JSON parsing
+    val targetGroup: String = "ALL", // Human-readable summary or primary target group
+    val targetGroups: List<String> = emptyList(), // Criteria keys: "ALL", "TYPE:MDA", "REGION_ALL:Ashanti", "REGION_MMDA:Ashanti", etc.
+    val targetInstitutions: List<String> = emptyList() // Specific institution names
 ) {
     val date: LocalDate
         get() = try {
@@ -57,7 +60,103 @@ data class SubmissionDeadline(
     val displayDate: String
         get() = date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
 
+    fun matchesInstitution(instName: String, instType: String = "", instRegion: String = ""): Boolean {
+        val (normName, resolvedType, resolvedRegion) = resolveInstitution(instName, instType, instRegion)
+        val normLower = normName.lowercase().trim()
+        val typeUpper = resolvedType.uppercase().trim()
+        val regionTrimmed = resolvedRegion.trim()
+
+        // 1. Specific institution check (priority)
+        if (targetInstitutions.isNotEmpty()) {
+            if (targetInstitutions.any { it.trim().equals(normLower, ignoreCase = true) }) {
+                return true
+            }
+        }
+
+        // 2. Legacy fallback if both targetGroups & targetInstitutions are empty
+        if (targetGroups.isEmpty() && targetInstitutions.isEmpty()) {
+            val legacy = targetGroup.uppercase().trim()
+            if (legacy.isBlank() || legacy == "ALL") return true
+            return if (typeUpper.isNotBlank()) legacy == typeUpper else true
+        }
+
+        // 3. ALL check
+        if (targetGroups.any { it.equals("ALL", ignoreCase = true) }) return true
+
+        // 4. Institution category / type check
+        if (typeUpper.isNotBlank()) {
+            if (targetGroups.any { it.equals("TYPE:$typeUpper", ignoreCase = true) || it.equals(typeUpper, ignoreCase = true) }) {
+                return true
+            }
+        }
+
+        // 5. Regional filters check
+        if (regionTrimmed.isNotBlank()) {
+            if (targetGroups.any { it.equals("REGION_ALL:$regionTrimmed", ignoreCase = true) }) {
+                return true
+            }
+            if (typeUpper.isNotBlank() && targetGroups.any { it.equals("REGION_$typeUpper:$regionTrimmed", ignoreCase = true) }) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    fun formatTargetSummary(): String {
+        if (targetGroups.any { it.equals("ALL", ignoreCase = true) } || (targetGroups.isEmpty() && targetInstitutions.isEmpty())) {
+            return when (targetGroup.uppercase().trim()) {
+                "MDA" -> "MDAs Only"
+                "SOE" -> "SOEs Only"
+                "RCC" -> "RCCs Only"
+                "MMDA" -> "MMDAs Only"
+                else -> if (targetGroup.isNotBlank()) targetGroup else "All Institutions"
+            }
+        }
+        val parts = mutableListOf<String>()
+        for (g in targetGroups) {
+            when {
+                g.equals("TYPE:MDA", ignoreCase = true) -> parts.add("All MDAs")
+                g.equals("TYPE:SOE", ignoreCase = true) -> parts.add("All SOEs")
+                g.equals("TYPE:RCC", ignoreCase = true) -> parts.add("All RCCs")
+                g.equals("TYPE:MMDA", ignoreCase = true) -> parts.add("All MMDAs")
+                g.startsWith("REGION_ALL:", ignoreCase = true) -> parts.add("${g.removePrefix("REGION_ALL:")} (All)")
+                g.startsWith("REGION_MDA:", ignoreCase = true) -> parts.add("${g.removePrefix("REGION_MDA:")} (MDAs)")
+                g.startsWith("REGION_MMDA:", ignoreCase = true) -> parts.add("${g.removePrefix("REGION_MMDA:")} (MMDAs)")
+                g.startsWith("REGION_RCC:", ignoreCase = true) -> parts.add("${g.removePrefix("REGION_RCC:")} (RCC)")
+                else -> parts.add(g)
+            }
+        }
+        if (targetInstitutions.size == 1) {
+            parts.add(targetInstitutions.first())
+        } else if (targetInstitutions.size > 1) {
+            parts.add("${targetInstitutions.size} specific institutions")
+        }
+        return if (parts.isNotEmpty()) parts.joinToString(", ") else "All Institutions"
+    }
+
     companion object {
+        fun resolveInstitution(instName: String, fallbackType: String = "", fallbackRegion: String = ""): Triple<String, String, String> {
+            val trimmed = instName.trim()
+            val rccRegion = InstitutionData.REGIONS.firstOrNull { InstitutionData.RCC_DATA[it].equals(trimmed, ignoreCase = true) }
+            if (rccRegion != null || trimmed.endsWith(" RCC", ignoreCase = true)) {
+                val reg = rccRegion ?: trimmed.removeSuffix(" RCC").trim()
+                return Triple(trimmed, "RCC", reg)
+            }
+            val mmdaEntry = InstitutionData.MMDA_DATA.entries.firstOrNull { entry ->
+                entry.value.any { it.equals(trimmed, ignoreCase = true) }
+            }
+            if (mmdaEntry != null) {
+                return Triple(trimmed, "MMDA", mmdaEntry.key)
+            }
+            if (InstitutionData.MDA_LIST.any { it.equals(trimmed, ignoreCase = true) }) {
+                return Triple(trimmed, "MDA", fallbackRegion)
+            }
+            if (InstitutionData.SOE_LIST.any { it.equals(trimmed, ignoreCase = true) }) {
+                return Triple(trimmed, "SOE", fallbackRegion)
+            }
+            return Triple(trimmed, fallbackType, fallbackRegion)
+        }
         val defaultDeadlines = listOf(
             SubmissionDeadline("1st Quarter Internal Audit Report", "2026-04-30"),
             SubmissionDeadline("2nd Quarter Internal Audit Report", "2026-07-31"),

@@ -16,8 +16,8 @@ android {
         applicationId = "com.bibiniitech.iaaapp"
         minSdk = 28
         targetSdk = 36
-        versionCode = 16
-        versionName = "2.8.2"
+        versionCode = 17
+        versionName = "2.8.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

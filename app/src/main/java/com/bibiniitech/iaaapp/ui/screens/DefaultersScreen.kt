@@ -82,7 +82,9 @@ data class ReportDef(
     val category: String, // "quarterly", "soi", "ccc", "annual"
     val defaultDeadline: String, // "YYYY-MM-DD"
     val quarterIdentifier: String = "",
-    val targetGroup: String = "ALL"
+    val targetGroup: String = "ALL",
+    val targetGroups: List<String> = emptyList(),
+    val targetInstitutions: List<String> = emptyList()
 )
 
 data class CategoryGroupDef(
@@ -338,7 +340,9 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
                     category = category,
                     defaultDeadline = d.dateString,
                     quarterIdentifier = quarterId,
-                    targetGroup = d.targetGroup
+                    targetGroup = d.targetGroup,
+                    targetGroups = d.targetGroups,
+                    targetInstitutions = d.targetInstitutions
                 )
 
                 val targetGroup = groups.firstOrNull { it.id == category }
@@ -386,10 +390,15 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
                 if (isElapsed) {
                     val deadlineEpochMs = deadlineDate.atTime(23, 59, 59).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-                    val applicableInstitutions = if (rep.targetGroup == "ALL" || rep.targetGroup.isBlank()) {
-                        allInstitutions
-                    } else {
-                        allInstitutions.filter { it.type.equals(rep.targetGroup, ignoreCase = true) }
+                    val tempDl = SubmissionDeadline(
+                        report = rep.title,
+                        dateString = rep.defaultDeadline,
+                        targetGroup = rep.targetGroup,
+                        targetGroups = rep.targetGroups,
+                        targetInstitutions = rep.targetInstitutions
+                    )
+                    val applicableInstitutions = allInstitutions.filter { inst ->
+                        tempDl.matchesInstitution(inst.name, inst.type, inst.region)
                     }
 
                     for (inst in applicableInstitutions) {
