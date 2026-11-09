@@ -71,6 +71,7 @@ data class SubmissionRecord(
     val timestamp: Long = 0,
     val fileNames: List<String> = emptyList(),
     val reportName: String = "",
+    val downloadUrls: List<String> = emptyList()
 )
 
 @Keep
@@ -80,6 +81,7 @@ data class UserProfile(
     val surname: String = "",
     val email: String = "",
     val institution: String = "",
+    val institutionType: String = "",
     val phone: String = "",
     val role: String = "user",
     @get:PropertyName("profileComplete")
@@ -1250,7 +1252,8 @@ object FirebaseHelper {
                     senderEmail = doc.getString("senderEmail") ?: "",
                     timestamp = doc.getLong("timestamp") ?: 0L,
                     fileNames = (doc["fileNames"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                    reportName = doc.getString("reportName") ?: ""
+                    reportName = doc.getString("reportName") ?: "",
+                    downloadUrls = (doc["downloadUrls"] as? List<*>)?.filterIsInstance<String>() ?: (doc["fileUrls"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                 )
             }
             cachedSubmissions = list

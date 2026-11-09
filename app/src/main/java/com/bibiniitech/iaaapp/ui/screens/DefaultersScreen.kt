@@ -81,7 +81,8 @@ data class ReportDef(
     val title: String,
     val category: String, // "quarterly", "soi", "ccc", "annual"
     val defaultDeadline: String, // "YYYY-MM-DD"
-    val quarterIdentifier: String = ""
+    val quarterIdentifier: String = "",
+    val targetGroup: String = "ALL"
 )
 
 data class CategoryGroupDef(
@@ -336,7 +337,8 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
                     title = d.report,
                     category = category,
                     defaultDeadline = d.dateString,
-                    quarterIdentifier = quarterId
+                    quarterIdentifier = quarterId,
+                    targetGroup = d.targetGroup
                 )
 
                 val targetGroup = groups.firstOrNull { it.id == category }
@@ -384,7 +386,13 @@ fun DefaultersScreen(onBack: () -> Unit = {}) {
                 if (isElapsed) {
                     val deadlineEpochMs = deadlineDate.atTime(23, 59, 59).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-                    for (inst in allInstitutions) {
+                    val applicableInstitutions = if (rep.targetGroup == "ALL" || rep.targetGroup.isBlank()) {
+                        allInstitutions
+                    } else {
+                        allInstitutions.filter { it.type.equals(rep.targetGroup, ignoreCase = true) }
+                    }
+
+                    for (inst in applicableInstitutions) {
                         val normInst = normalizeText(inst.name)
                         val matching = submissions.filter { s ->
                             val sNorm = normalizeText(s.institution)

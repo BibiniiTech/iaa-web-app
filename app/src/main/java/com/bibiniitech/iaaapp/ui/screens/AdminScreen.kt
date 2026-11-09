@@ -1796,6 +1796,7 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
     // Deadline Inputs
     var newDeadlineName by remember { mutableStateOf("") }
     var newDeadlineDate by remember { mutableStateOf("") } // YYYY-MM-DD
+    var newDeadlineTargetGroup by remember { mutableStateOf("ALL") }
     
     // Seminar Inputs
     var semTopic by remember { mutableStateOf("") }
@@ -1828,33 +1829,67 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
         // Deadlines Editor
         CollapsibleAdminCard(title = "Submission Deadlines") {
             // Add deadline
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = newDeadlineName,
-                    onValueChange = { newDeadlineName = it },
-                    label = { Text("Report Name") },
-                    modifier = Modifier.weight(1.5f)
-                )
-                OutlinedTextField(
-                    value = newDeadlineDate,
-                    onValueChange = { newDeadlineDate = it },
-                    label = { Text("YYYY-MM-DD") },
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = {
-                        if (newDeadlineName.isNotEmpty() && newDeadlineDate.isNotEmpty()) {
-                            deadlinesList.add(SubmissionDeadline(newDeadlineName, newDeadlineDate))
-                            newDeadlineName = ""
-                            newDeadlineDate = ""
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = newDeadlineName,
+                        onValueChange = { newDeadlineName = it },
+                        label = { Text("Report Name") },
+                        modifier = Modifier.weight(1.5f)
+                    )
+                    OutlinedTextField(
+                        value = newDeadlineDate,
+                        onValueChange = { newDeadlineDate = it },
+                        label = { Text("YYYY-MM-DD") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        DropdownField(
+                            label = "Target Group",
+                            options = listOf("All Institutions (ALL)", "MDAs Only (MDA)", "SOEs Only (SOE)", "RCCs Only (RCC)", "MMDAs Only (MMDA)"),
+                            selectedOption = when (newDeadlineTargetGroup) {
+                                "MDA" -> "MDAs Only (MDA)"
+                                "SOE" -> "SOEs Only (SOE)"
+                                "RCC" -> "RCCs Only (RCC)"
+                                "MMDA" -> "MMDAs Only (MMDA)"
+                                else -> "All Institutions (ALL)"
+                            }
+                        ) { selected ->
+                            newDeadlineTargetGroup = when {
+                                selected.contains("MDA") && !selected.contains("MMDA") && !selected.contains("All") -> "MDA"
+                                selected.contains("SOE") -> "SOE"
+                                selected.contains("RCC") -> "RCC"
+                                selected.contains("MMDA") -> "MMDA"
+                                else -> "ALL"
+                            }
                         }
                     }
-                ) {
-                    Icon(Icons.Default.AddCircle, contentDescription = "Add Deadline", tint = MaterialTheme.colorScheme.primary)
+
+                    Button(
+                        onClick = {
+                            if (newDeadlineName.isNotEmpty() && newDeadlineDate.isNotEmpty()) {
+                                deadlinesList.add(SubmissionDeadline(newDeadlineName, newDeadlineDate, newDeadlineTargetGroup))
+                                newDeadlineName = ""
+                                newDeadlineDate = ""
+                                newDeadlineTargetGroup = "ALL"
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.AddCircle, contentDescription = "Add Deadline")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add")
+                    }
                 }
             }
 
@@ -1870,7 +1905,14 @@ fun AdminDeadlinesSeminarsTab(syncToken: Long) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(dl.report, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text(dl.displayDate, fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                            val targetBadge = when (dl.targetGroup) {
+                                "MDA" -> "MDAs Only"
+                                "SOE" -> "SOEs Only"
+                                "RCC" -> "RCCs Only"
+                                "MMDA" -> "MMDAs Only"
+                                else -> "All Institutions"
+                            }
+                            Text("${dl.displayDate} • Target: $targetBadge", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
                         }
                         IconButton(onClick = { deadlinesList.removeAt(index) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

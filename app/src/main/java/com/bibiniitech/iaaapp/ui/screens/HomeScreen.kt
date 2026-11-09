@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bibiniitech.iaaapp.*
 import com.bibiniitech.iaaapp.R
+import com.bibiniitech.iaaapp.data.InstitutionData
 import com.bibiniitech.iaaapp.ui.theme.IAAAppTheme
 import com.bibiniitech.iaaapp.ui.theme.ThemePreviews
 import java.time.LocalDate
@@ -460,14 +461,29 @@ fun QuickStatsRow(
         }
         Triple("Upcoming Deadlines", upcomingDeadlines.size, "Next 30 Days")
     } else {
+        val userInst = userProfile?.institution ?: ""
+        val userInstType = userProfile?.institutionType?.ifBlank {
+            when {
+                InstitutionData.MDA_LIST.any { it.equals(userInst, ignoreCase = true) } -> "MDA"
+                InstitutionData.SOE_LIST.any { it.equals(userInst, ignoreCase = true) } -> "SOE"
+                InstitutionData.RCC_DATA.values.any { it.equals(userInst, ignoreCase = true) } -> "RCC"
+                InstitutionData.MMDA_DATA.values.flatten().any { it.equals(userInst, ignoreCase = true) } -> "MMDA"
+                else -> ""
+            }
+        } ?: ""
+
+        val applicableDeadlines = deadlines.filter { dl ->
+            dl.targetGroup.isBlank() || dl.targetGroup == "ALL" || dl.targetGroup.equals(userInstType, ignoreCase = true)
+        }
+
         // Persistent Overdue Submissions: Deadlines in the past that were not submitted
-        val overdueDeadlines = deadlines.filter { dl ->
+        val overdueDeadlines = applicableDeadlines.filter { dl ->
             val dDate = parseFlexibleDate(dl.dateString) ?: dl.date
             dDate.isBefore(today) && !isDeadlineMetBySubmissions(dl, institutionSubmissions)
         }
 
         // Upcoming Submissions: Deadlines due within the next 30 days that are not submitted
-        val dueSoonDeadlines = deadlines.filter { dl ->
+        val dueSoonDeadlines = applicableDeadlines.filter { dl ->
             val dDate = parseFlexibleDate(dl.dateString) ?: dl.date
             !dDate.isBefore(today) && !dDate.isAfter(thirtyDaysFromNow) && !isDeadlineMetBySubmissions(dl, institutionSubmissions)
         }

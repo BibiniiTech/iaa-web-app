@@ -44,6 +44,7 @@ fun SubmissionsScreen(
     onNavigateToCCC: () -> Unit = {},
     onNavigateToStatusOfImplementation: () -> Unit = {},
     onNavigateToOther: () -> Unit = {},
+    onNavigateToSentReports: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
 
@@ -142,6 +143,12 @@ fun SubmissionsScreen(
                 icon = Icons.Default.Add,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onNavigateToOther
+            )
+            SubmissionActionButton(
+                text = "Sent Reports (Archive)",
+                icon = Icons.Default.CloudDone,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onNavigateToSentReports
             )
         }
         

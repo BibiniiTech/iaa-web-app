@@ -45,6 +45,7 @@ import java.time.format.DateTimeFormatter
 data class SubmissionDeadline(
     val report: String,
     val dateString: String, // Used for JSON parsing
+    val targetGroup: String = "ALL" // "ALL", "MDA", "SOE", "RCC", "MMDA"
 ) {
     val date: LocalDate
         get() = try {

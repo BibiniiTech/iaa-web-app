@@ -129,7 +129,13 @@ fun TrainingsScreen() {
             ) {
                 HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
                 
-                if (seminarsList.isEmpty()) {
+                val today = java.time.LocalDate.now()
+                val upcomingSeminars = seminarsList.filter { sem ->
+                    val sDate = try { java.time.LocalDate.parse(sem.date.trim()) } catch (_: Exception) { null }
+                    sDate == null || !sDate.isBefore(today)
+                }
+
+                if (upcomingSeminars.isEmpty()) {
                     Text(
                         text = "No upcoming seminars scheduled at the moment.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -137,7 +143,7 @@ fun TrainingsScreen() {
                         modifier = Modifier.padding(16.dp)
                     )
                 } else {
-                    seminarsList.forEachIndexed { index, sem ->
+                    upcomingSeminars.forEachIndexed { index, sem ->
                         SeminarDetailItem(
                             topic = sem.topic,
                             date = sem.date,
@@ -155,6 +161,41 @@ fun TrainingsScreen() {
             }
         }
         
+        val pastSeminars = seminarsList.filter { sem ->
+            val sDate = try { java.time.LocalDate.parse(sem.date.trim()) } catch (_: Exception) { null }
+            sDate != null && sDate.isBefore(java.time.LocalDate.now())
+        }
+
+        if (pastSeminars.isNotEmpty()) {
+            TrainingCategoryItem(
+                title = "Archived Seminars",
+                subtitle = "Concluded professional seminars and past workshops.",
+                icon = Icons.Default.History,
+                isExpandable = true
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
+                    pastSeminars.forEachIndexed { index, sem ->
+                        SeminarDetailItem(
+                            topic = "${sem.topic} [Concluded]",
+                            date = sem.date,
+                            time = sem.time,
+                            location = sem.location,
+                            fee = sem.fee,
+                            registrationUrl = "",
+                            onRegisterClick = {}
+                        )
+                        if (index < (pastSeminars.size - 1)) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    }
+                }
+            }
+        }
+
         TrainingCategoryItem(
             title = "Training Resources",
             subtitle = "Presentation files and resources.",

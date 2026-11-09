@@ -64,6 +64,9 @@ fun OtherReportsSubmissionScreen(onBack: () -> Unit) {
     var selectedRegion by remember { mutableStateOf("") }
     var selectedMmda by remember { mutableStateOf("") }
     var reportTypeText by remember { mutableStateOf("") }
+    val specialReportsList = remember { mutableStateListOf<SubmissionDeadline>() }
+    var selectedReportOption by remember { mutableStateOf("") }
+    var customReportName by remember { mutableStateOf("") }
     var senderName by remember { mutableStateOf("") }
     var senderEmail by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(value = false) }
@@ -72,6 +75,39 @@ fun OtherReportsSubmissionScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         FirebaseHelper.ensureRecipientEmailsLoaded()
+        val allDeadlines = FirebaseHelper.getDeadlines()
+        val standardNorms = listOf(
+            "1stquarterinternalauditreport",
+            "2ndquarterinternalauditreport",
+            "3rdquarterinternalauditreport",
+            "4thquarterinternalauditreport",
+            "statusofimplementationon4thquarteriareport",
+            "statusofimplementationon1stquarteriareport",
+            "statusofimplementationon2ndquarteriareport",
+            "statusofimplementationon3rdquarteriareport",
+            "1stquartercommitmentcontrolcompliancecccreviewreport",
+            "2ndquartercommitmentcontrolcompliancecccreviewreport",
+            "3rdquartercommitmentcontrolcompliancecccreviewreport",
+            "4thquartercommitmentcontrolcompliancecccreviewreport",
+            "annualworkplan",
+            "strategicplan",
+            "annualiaperformancereport"
+        )
+        val specials = allDeadlines.filter { dl ->
+            val norm = dl.report.lowercase().replace(Regex("[^a-z0-9]"), "")
+            !standardNorms.any { std -> norm.contains(std) || std.contains(norm) }
+        }
+        specialReportsList.clear()
+        specialReportsList.addAll(specials)
+
+        if (reportTypeText.isNotEmpty()) {
+            if (specials.any { it.report.equals(reportTypeText, ignoreCase = true) }) {
+                selectedReportOption = specials.first { it.report.equals(reportTypeText, ignoreCase = true) }.report
+            } else {
+                selectedReportOption = "Other (Specify custom report name)"
+                customReportName = reportTypeText
+            }
+        }
         val draft = draftDao.getDraftByCategory("other")
         if (draft != null) {
             institutionType = draft.institutionType
@@ -202,13 +238,40 @@ fun OtherReportsSubmissionScreen(onBack: () -> Unit) {
             }
 
             if (institutionType.isNotEmpty()) {
-                OutlinedTextField(
-                    value = reportTypeText,
-                    onValueChange = { reportTypeText = it },
-                    label = { Text("Report Type", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
-                )
+                val optionsList = specialReportsList.map { it.report } + listOf("Other (Specify custom report name)")
+                val currentSelection = when {
+                    selectedReportOption.isNotEmpty() -> selectedReportOption
+                    optionsList.isNotEmpty() -> optionsList.first()
+                    else -> "Select Report Type"
+                }
+
+                DropdownField(
+                    label = "Report Type / Special Report",
+                    options = optionsList,
+                    selectedOption = currentSelection
+                ) { choice ->
+                    selectedReportOption = choice
+                    if (choice == "Other (Specify custom report name)") {
+                        reportTypeText = customReportName
+                    } else {
+                        reportTypeText = choice
+                    }
+                }
+
+                if (selectedReportOption == "Other (Specify custom report name)" || (selectedReportOption.isEmpty() && specialReportsList.isEmpty())) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = customReportName,
+                        onValueChange = {
+                            customReportName = it
+                            reportTypeText = it
+                        },
+                        label = { Text("Type Custom Report Name", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                        placeholder = { Text("e.g. Special Review on IGF Collections", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
+                    )
+                }
 
                 OutlinedTextField(
                     value = senderName,
