@@ -7,6 +7,7 @@ import { auth, db } from '@/lib/firebase';
 import { getCachedConfigDoc, getCachedUserProfile, invalidateAllCaches } from '@/lib/firebase-cache';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 import { MMDA_DATA, RCC_DATA } from '@/data/mmda_data';
+import { isDeadlineApplicable, DeadlineTargetModel } from '@/lib/deadline-targets';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import styles from './page.module.css';
@@ -27,11 +28,7 @@ interface Seminar {
   date: string; // YYYY-MM-DD or parseable date
 }
 
-interface Deadline {
-  report: string;
-  dateString: string; // YYYY-MM-DD or parseable date
-  targetGroup?: string;
-}
+type Deadline = DeadlineTargetModel;
 
 function parseLocalDate(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -234,10 +231,10 @@ export default function Home() {
             userInstType = 'MMDA';
           }
         }
-        const applicableDeadlines = deadlines.filter(d => {
-          if (!d.targetGroup || d.targetGroup === 'ALL') return true;
-          return userInstType ? d.targetGroup.toUpperCase() === userInstType : true;
-        });
+        const userRegion = String(userData?.region || '').trim();
+        const applicableDeadlines = deadlines.filter(d =>
+          isDeadlineApplicable(d, institution, userInstType, userRegion)
+        );
 
         // Persistent Overdue Submissions: Deadlines in the past not submitted by user's institution
         const overdueDeadlines = applicableDeadlines.filter(d => {

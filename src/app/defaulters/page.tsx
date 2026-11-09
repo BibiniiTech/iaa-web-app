@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { getCachedConfigDoc } from '@/lib/firebase-cache';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
 import { MMDA_DATA, REGIONS, RCC_DATA } from '@/data/mmda_data';
+import { isDeadlineApplicable } from '@/lib/deadline-targets';
 import styles from './defaulters.module.css';
 
 export interface MasterInstitution {
@@ -35,6 +36,8 @@ export interface ReportDefinition {
   reportNamePattern: string;
   quarterIdentifier?: string;
   targetGroup?: string;
+  targetGroups?: string[];
+  targetInstitutions?: string[];
 }
 
 export interface CategoryGroup {
@@ -203,6 +206,8 @@ type DeadlineConfig = {
   report: string;
   dateString: string;
   targetGroup?: string;
+  targetGroups?: string[];
+  targetInstitutions?: string[];
 };
 
 function normalizeText(str?: string): string {
@@ -474,6 +479,8 @@ export default function DefaultersPage() {
           reportNamePattern: d.report,
           quarterIdentifier: quarterId,
           targetGroup: d.targetGroup || "ALL",
+          targetGroups: d.targetGroups || [],
+          targetInstitutions: d.targetInstitutions || [],
         };
 
         const targetGroup = groups.find(g => g.id === category);
@@ -543,9 +550,20 @@ export default function DefaultersPage() {
           const deadlineMs = deadlineDate.getTime();
           const msPerDay = 1000 * 60 * 60 * 24;
 
-          const applicableInstitutions = (!rep.targetGroup || rep.targetGroup === 'ALL')
-            ? allInstitutions
-            : allInstitutions.filter(inst => inst.type.toLowerCase() === rep.targetGroup?.toLowerCase());
+          const applicableInstitutions = allInstitutions.filter(inst =>
+            isDeadlineApplicable(
+              {
+                report: rep.title,
+                dateString: rep.defaultDeadline,
+                targetGroup: rep.targetGroup,
+                targetGroups: rep.targetGroups,
+                targetInstitutions: rep.targetInstitutions,
+              },
+              inst.name,
+              inst.type,
+              inst.region
+            )
+          );
 
           for (const inst of applicableInstitutions) {
             const normInst = normalizeText(inst.name);

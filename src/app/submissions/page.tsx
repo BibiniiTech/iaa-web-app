@@ -9,6 +9,7 @@ import styles from './submissions.module.css';
 import FileUpload from '@/components/submissions/FileUpload';
 import { REGIONS, MMDA_DATA, RCC_DATA } from '@/data/mmda_data';
 import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
+import { isDeadlineApplicable, DeadlineTargetModel } from '@/lib/deadline-targets';
 
 const SUBMISSION_DISABLED_MESSAGE = 'Please use your normal submissions channel until the Agency approves the use of this app';
 
@@ -42,11 +43,6 @@ const SubmissionIcons = {
 
 type SubmissionType = 'soi' | 'quarterly' | 'annual' | 'ccc' | 'other' | null;
 
-type Deadline = {
-  report: string;
-  dateString: string;
-};
-
 type PortalConfig = {
   description: string;
 };
@@ -60,6 +56,8 @@ type SubmissionDraft = {
   quarter?: string;
   reportType?: string;
 };
+
+type Deadline = DeadlineTargetModel;
 
 const DEFAULT_DEADLINES: Deadline[] = [
   { report: "1st Quarter Internal Audit Report", dateString: "2026-04-30" },
@@ -261,9 +259,19 @@ export default function SubmissionsPage() {
     "strategicplan",
     "annualiaperformancereport"
   ];
+  const currentInstitution =
+    institutionType === 'MMDA' ? mmda :
+    institutionType === 'RCC' ? (region ? `${region} RCC` : '') :
+    institutionName;
+
   const specialReports = deadlines.filter(dl => {
     const norm = dl.report.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return !standardNorms.some(std => norm.includes(std) || std.includes(norm));
+    const isNonStandard = !standardNorms.some(std => norm.includes(std) || std.includes(norm));
+    if (!isNonStandard) return false;
+    if (currentInstitution) {
+      return isDeadlineApplicable(dl, currentInstitution, institutionType, region);
+    }
+    return true;
   });
 
   const handleSubmit = (e: React.FormEvent) => {

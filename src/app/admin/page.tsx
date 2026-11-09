@@ -23,7 +23,9 @@ import {
   invalidateAllCaches,
 } from '@/lib/firebase-cache';
 import { compressFileForUpload, compressVotingImage } from '@/lib/compression';
-import { MMDA_DATA, REGIONS } from '@/data/mmda_data';
+import { MMDA_DATA, REGIONS, RCC_DATA } from '@/data/mmda_data';
+import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
+import { formatTargetSummary, DeadlineTargetModel } from '@/lib/deadline-targets';
 import styles from './admin.module.css';
 
 type Tab = 'home' | 'emails' | 'pfmDocs' | 'dates' | 'voting' | 'submissions';
@@ -78,11 +80,7 @@ type DbDocument = {
   timestamp: number;
 };
 
-type Deadline = {
-  report: string;
-  dateString: string;
-  targetGroup?: string;
-};
+type Deadline = DeadlineTargetModel;
 
 type Seminar = {
   id: string;
@@ -917,6 +915,46 @@ function DatesSeminarsTab({
   const [deadlines, setDeadlines] = useState<Deadline[]>(DEFAULT_DEADLINES);
   const [seminars, setSeminars] = useState<Seminar[]>(DEFAULT_SEMINARS);
   const [newDeadline, setNewDeadline] = useState<Deadline>({ report: '', dateString: '' });
+  const [targetGroups, setTargetGroups] = useState<string[]>(['ALL']);
+  const [targetInstitutions, setTargetInstitutions] = useState<string[]>([]);
+  const [activeRegion, setActiveRegion] = useState<string>(REGIONS[0] || 'Ashanti');
+  const [instSearch, setInstSearch] = useState<string>('');
+
+  const allMasterInstitutions = useMemo(() => {
+    const list: { name: string; type: string; region?: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const mda of MDA_DATA) {
+      const clean = mda.trim();
+      if (clean && !seen.has(clean.toLowerCase())) {
+        seen.add(clean.toLowerCase());
+        list.push({ name: clean, type: 'MDA' });
+      }
+    }
+    for (const soe of SOE_DATA) {
+      const clean = soe.trim();
+      if (clean && !seen.has(clean.toLowerCase())) {
+        seen.add(clean.toLowerCase());
+        list.push({ name: clean, type: 'SOE' });
+      }
+    }
+    for (const region of REGIONS) {
+      const rcc = RCC_DATA[region];
+      if (rcc && !seen.has(rcc.toLowerCase())) {
+        seen.add(rcc.toLowerCase());
+        list.push({ name: rcc, type: 'RCC', region });
+      }
+      const mmdas = MMDA_DATA[region] || [];
+      for (const m of mmdas) {
+        const clean = m.trim();
+        if (clean && !seen.has(clean.toLowerCase())) {
+          seen.add(clean.toLowerCase());
+          list.push({ name: clean, type: 'MMDA', region });
+        }
+      }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
   const [newSeminar, setNewSeminar] = useState<Omit<Seminar, 'id'>>({ topic: '', date: '', time: '', location: '', fee: '', registrationUrl: '' });
   const [savingDeadlines, setSavingDeadlines] = useState(false);
 
@@ -980,39 +1018,212 @@ function DatesSeminarsTab({
         <div className={styles.inlineForm} style={{ flexWrap: 'wrap', gap: '8px' }}>
           <Input label="Report Name" value={newDeadline.report} onChange={(report) => setNewDeadline({ ...newDeadline, report })} />
           <Input label="YYYY-MM-DD" value={newDeadline.dateString} onChange={(dateString) => setNewDeadline({ ...newDeadline, dateString })} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Target Group</label>
-            <select
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.9rem' }}
-              value={newDeadline.targetGroup || 'ALL'}
-              onChange={(e) => setNewDeadline({ ...newDeadline, targetGroup: e.target.value })}
-            >
-              <option value="ALL">All Institutions (MDAs, SOEs, RCCs, MMDAs)</option>
-              <option value="MDA">MDAs Only</option>
-              <option value="SOE">SOEs Only</option>
-              <option value="RCC">RCCs Only</option>
-              <option value="MMDA">MMDAs Only</option>
-            </select>
-          </div>
           <button
             className={styles.addBtn}
             type="button"
-            style={{ alignSelf: 'flex-end', height: '38px' }}
+            style={{ alignSelf: 'flex-end', height: '38px', minWidth: '120px' }}
             onClick={() => {
               if (!newDeadline.report || !newDeadline.dateString) return;
-              setDeadlines([...deadlines, { ...newDeadline, targetGroup: newDeadline.targetGroup || 'ALL' }]);
-              setNewDeadline({ report: '', dateString: '', targetGroup: 'ALL' });
+              const summary = formatTargetSummary({ targetGroups, targetInstitutions });
+              setDeadlines([
+                ...deadlines,
+                {
+                  ...newDeadline,
+                  targetGroup: summary,
+                  targetGroups: targetGroups.length > 0 ? targetGroups : ['ALL'],
+                  targetInstitutions: targetInstitutions.length > 0 ? targetInstitutions : []
+                }
+              ]);
+              setNewDeadline({ report: '', dateString: '' });
+              setTargetGroups(['ALL']);
+              setTargetInstitutions([]);
+              setInstSearch('');
             }}
           >
             Add Deadline
           </button>
         </div>
+
+        {/* Target Group Filters (Multi-select Checkboxes, Regional Filters, and Specific Institutions) */}
+        <div style={{ marginTop: '12px', padding: '14px', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
+            Target Group Filters (Check one or more criteria)
+          </div>
+
+          {/* 1. Broad / National Categories */}
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              National / General Scope
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={targetGroups.includes('ALL')}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setTargetGroups(['ALL']);
+                      setTargetInstitutions([]);
+                    } else {
+                      setTargetGroups(targetGroups.filter(g => g !== 'ALL'));
+                    }
+                  }}
+                />
+                <strong>All Institutions (Universal)</strong>
+              </label>
+
+              {(['MDA', 'SOE', 'RCC', 'MMDA'] as const).map((type) => {
+                const key = `TYPE:${type}`;
+                const isChecked = targetGroups.includes(key);
+                return (
+                  <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        let next = targetGroups.filter(g => g !== 'ALL');
+                        if (e.target.checked) {
+                          next.push(key);
+                        } else {
+                          next = next.filter(g => g !== key);
+                        }
+                        setTargetGroups(next.length === 0 && targetInstitutions.length === 0 ? ['ALL'] : next);
+                      }}
+                    />
+                    {type === 'MDA' ? 'All MDAs' : type === 'SOE' ? 'All SOEs' : type === 'RCC' ? 'All RCCs' : 'All MMDAs'}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Regional Filters */}
+          <div style={{ marginBottom: '12px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              Regional Filters (Target Institutions in Specific Regions)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Region:</span>
+                <select
+                  value={activeRegion}
+                  onChange={(e) => setActiveRegion(e.target.value)}
+                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', fontSize: '0.85rem' }}
+                >
+                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {[
+                  { key: `REGION_ALL:${activeRegion}`, label: `All institutions in ${activeRegion}` },
+                  { key: `REGION_MDA:${activeRegion}`, label: `MDAs in ${activeRegion}` },
+                  { key: `REGION_MMDA:${activeRegion}`, label: `MMDAs in ${activeRegion}` },
+                ].map((item) => {
+                  const isChecked = targetGroups.includes(item.key);
+                  return (
+                    <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          let next = targetGroups.filter(g => g !== 'ALL');
+                          if (e.target.checked) {
+                            next.push(item.key);
+                          } else {
+                            next = next.filter(g => g !== item.key);
+                          }
+                          setTargetGroups(next.length === 0 && targetInstitutions.length === 0 ? ['ALL'] : next);
+                        }}
+                      />
+                      {item.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Specific Institutions */}
+          <div style={{ paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              Target Specific Institutions
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                list="all-institutions-admin-list"
+                placeholder="Type or select specific institution..."
+                value={instSearch}
+                onChange={(e) => setInstSearch(e.target.value)}
+                style={{ flex: '1', minWidth: '240px', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', fontSize: '0.85rem' }}
+              />
+              <datalist id="all-institutions-admin-list">
+                {allMasterInstitutions.map((inst) => (
+                  <option key={inst.name} value={inst.name}>{inst.name} ({inst.type}{inst.region ? ` - ${inst.region}` : ''})</option>
+                ))}
+              </datalist>
+              <button
+                type="button"
+                style={{ padding: '6px 14px', borderRadius: '6px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                onClick={() => {
+                  const clean = instSearch.trim();
+                  if (!clean) return;
+                  if (!targetInstitutions.includes(clean)) {
+                    setTargetInstitutions([...targetInstitutions, clean]);
+                    setTargetGroups(targetGroups.filter(g => g !== 'ALL'));
+                  }
+                  setInstSearch('');
+                }}
+              >
+                + Add Institution
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Active Target Criteria Badges */}
+          <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Active Criteria:</span>
+            {targetGroups.map(g => (
+              <span key={g} style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                {g === 'ALL' ? 'All Institutions' : g === 'TYPE:MDA' ? 'All MDAs' : g === 'TYPE:SOE' ? 'All SOEs' : g === 'TYPE:RCC' ? 'All RCCs' : g === 'TYPE:MMDA' ? 'All MMDAs' : g.replace('REGION_ALL:', '').replace('REGION_MDA:', 'MDAs in ').replace('REGION_MMDA:', 'MMDAs in ')}
+                {g !== 'ALL' && (
+                  <span
+                    style={{ cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}
+                    onClick={() => {
+                      const next = targetGroups.filter(item => item !== g);
+                      setTargetGroups(next.length === 0 && targetInstitutions.length === 0 ? ['ALL'] : next);
+                    }}
+                  >
+                    ✕
+                  </span>
+                )}
+              </span>
+            ))}
+            {targetInstitutions.map(inst => (
+              <span key={inst} style={{ background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                🏢 {inst}
+                <span
+                  style={{ cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}
+                  onClick={() => {
+                    const next = targetInstitutions.filter(item => item !== inst);
+                    setTargetInstitutions(next);
+                    if (next.length === 0 && targetGroups.length === 0) setTargetGroups(['ALL']);
+                  }}
+                >
+                  ✕
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className={styles.list}>
           {deadlines.map((deadline, index) => (
             <div className={styles.listRow} key={`${deadline.report}-${deadline.dateString}-${index}`}>
               <span>
                 <strong>{deadline.report}</strong>
-                <small>{deadline.dateString} • Target: {deadline.targetGroup === 'MDA' ? 'MDAs Only' : deadline.targetGroup === 'SOE' ? 'SOEs Only' : deadline.targetGroup === 'RCC' ? 'RCCs Only' : deadline.targetGroup === 'MMDA' ? 'MMDAs Only' : 'All Institutions'}</small>
+                <small>{deadline.dateString} • Target: {formatTargetSummary(deadline)}</small>
               </span>
               <button className={styles.removeBtn} type="button" onClick={() => setDeadlines(deadlines.filter((_, itemIndex) => itemIndex !== index))}>Delete</button>
             </div>
