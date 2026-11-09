@@ -81,6 +81,7 @@ type DbDocument = {
 type Deadline = {
   report: string;
   dateString: string;
+  targetGroup?: string;
 };
 
 type Seminar = {
@@ -976,16 +977,31 @@ function DatesSeminarsTab({
   return (
     <div className={styles.stack}>
       <CollapsibleCard title="Submission Deadlines">
-        <div className={styles.inlineForm}>
+        <div className={styles.inlineForm} style={{ flexWrap: 'wrap', gap: '8px' }}>
           <Input label="Report Name" value={newDeadline.report} onChange={(report) => setNewDeadline({ ...newDeadline, report })} />
           <Input label="YYYY-MM-DD" value={newDeadline.dateString} onChange={(dateString) => setNewDeadline({ ...newDeadline, dateString })} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Target Group</label>
+            <select
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.9rem' }}
+              value={newDeadline.targetGroup || 'ALL'}
+              onChange={(e) => setNewDeadline({ ...newDeadline, targetGroup: e.target.value })}
+            >
+              <option value="ALL">All Institutions (MDAs, SOEs, RCCs, MMDAs)</option>
+              <option value="MDA">MDAs Only</option>
+              <option value="SOE">SOEs Only</option>
+              <option value="RCC">RCCs Only</option>
+              <option value="MMDA">MMDAs Only</option>
+            </select>
+          </div>
           <button
             className={styles.addBtn}
             type="button"
+            style={{ alignSelf: 'flex-end', height: '38px' }}
             onClick={() => {
               if (!newDeadline.report || !newDeadline.dateString) return;
-              setDeadlines([...deadlines, newDeadline]);
-              setNewDeadline({ report: '', dateString: '' });
+              setDeadlines([...deadlines, { ...newDeadline, targetGroup: newDeadline.targetGroup || 'ALL' }]);
+              setNewDeadline({ report: '', dateString: '', targetGroup: 'ALL' });
             }}
           >
             Add Deadline
@@ -994,7 +1010,10 @@ function DatesSeminarsTab({
         <div className={styles.list}>
           {deadlines.map((deadline, index) => (
             <div className={styles.listRow} key={`${deadline.report}-${deadline.dateString}-${index}`}>
-              <span><strong>{deadline.report}</strong><small>{deadline.dateString}</small></span>
+              <span>
+                <strong>{deadline.report}</strong>
+                <small>{deadline.dateString} • Target: {deadline.targetGroup === 'MDA' ? 'MDAs Only' : deadline.targetGroup === 'SOE' ? 'SOEs Only' : deadline.targetGroup === 'RCC' ? 'RCCs Only' : deadline.targetGroup === 'MMDA' ? 'MMDAs Only' : 'All Institutions'}</small>
+              </span>
               <button className={styles.removeBtn} type="button" onClick={() => setDeadlines(deadlines.filter((_, itemIndex) => itemIndex !== index))}>Delete</button>
             </div>
           ))}

@@ -89,6 +89,7 @@ export default function SubmissionsPage() {
   const [period, setPeriod] = useState('');
   const [quarter, setQuarter] = useState('');
   const [reportType, setReportType] = useState('');
+  const [isCustomReport, setIsCustomReport] = useState(false);
   const [senderName, setSenderName] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -243,6 +244,28 @@ export default function SubmissionsPage() {
     }
   }, [institutionType, institutionName, region, mmda, period, quarter, reportType, activePortal]);
 
+    const standardNorms = [
+    "1stquarterinternalauditreport",
+    "2ndquarterinternalauditreport",
+    "3rdquarterinternalauditreport",
+    "4thquarterinternalauditreport",
+    "statusofimplementationon4thquarteriareport",
+    "statusofimplementationon1stquarteriareport",
+    "statusofimplementationon2ndquarteriareport",
+    "statusofimplementationon3rdquarteriareport",
+    "1stquartercommitmentcontrolcompliancecccreviewreport",
+    "2ndquartercommitmentcontrolcompliancecccreviewreport",
+    "3rdquartercommitmentcontrolcompliancecccreviewreport",
+    "4thquartercommitmentcontrolcompliancecccreviewreport",
+    "annualworkplan",
+    "strategicplan",
+    "annualiaperformancereport"
+  ];
+  const specialReports = deadlines.filter(dl => {
+    const norm = dl.report.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return !standardNorms.some(std => norm.includes(std) || std.includes(norm));
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     triggerDisabledToast();
@@ -285,6 +308,15 @@ export default function SubmissionsPage() {
             <span className={styles.cardIcon}><SubmissionIcons.Other /></span>
             <span className={styles.cardTitle}>Other Reports</span>
             <p className="text-muted">Special audits and other documents</p>
+          </div>
+          <div className={styles.portalCard} onClick={() => router.push('/submissions/sent')}>
+            <span className={styles.cardIcon}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+              </svg>
+            </span>
+            <span className={styles.cardTitle}>Sent Reports</span>
+            <p className="text-muted">Download copies filed by your institution</p>
           </div>
         </div>
 
@@ -467,15 +499,42 @@ export default function SubmissionsPage() {
             </div>
           ) : (
             <div className={styles.inputGroup}>
-              <label>Report Type</label>
-              <input
-                type="text"
-                className={styles.inputField}
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                placeholder="e.g. Audit Report on Payroll"
+              <label>Report Type / Special Report</label>
+              <select
+                className={styles.selectField}
+                value={isCustomReport ? 'CUSTOM_OTHER' : period}
+                onChange={(e) => {
+                  if (e.target.value === 'CUSTOM_OTHER') {
+                    setIsCustomReport(true);
+                    setPeriod('');
+                  } else {
+                    setIsCustomReport(false);
+                    setPeriod(e.target.value);
+                  }
+                }}
                 required
-              />
+              >
+                <option value="">Select Report Type</option>
+                {specialReports.map((s) => (
+                  <option key={s.report} value={s.report}>
+                    {s.report}
+                  </option>
+                ))}
+                <option value="CUSTOM_OTHER">Other (Specify custom report name)</option>
+              </select>
+
+              {(isCustomReport || specialReports.length === 0) && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    className={styles.inputField}
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    placeholder="Type custom report name (e.g. Special Review on IGF Collections)"
+                    required
+                  />
+                </div>
+              )}
             </div>
           )}
 

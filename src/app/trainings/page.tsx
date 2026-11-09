@@ -208,23 +208,63 @@ export default function TrainingsPage() {
           subtitle="Register for upcoming professional seminars."
         >
           <div className={styles.divider} />
-          {loadingSeminars ? (
-            <p className={styles.emptyText}>Loading seminars…</p>
-          ) : seminars.length === 0 ? (
-            <p className={styles.emptyText}>
-              No upcoming seminars scheduled at the moment.
-            </p>
-          ) : (
-            <div className={styles.seminarList}>
-              {seminars.map((sem, idx) => (
-                <div key={sem.id}>
-                  {idx > 0 && <div className={styles.seminarDivider} />}
-                  <SeminarCard seminar={sem} />
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const upcoming = seminars.filter((s) => {
+              const d = new Date(s.date);
+              return isNaN(d.getTime()) || d >= now;
+            });
+
+            if (loadingSeminars) return <p className={styles.emptyText}>Loading seminars…</p>;
+            if (upcoming.length === 0) {
+              return <p className={styles.emptyText}>No upcoming seminars scheduled at the moment.</p>;
+            }
+
+            return (
+              <div className={styles.seminarList}>
+                {upcoming.map((sem, idx) => (
+                  <div key={sem.id}>
+                    {idx > 0 && <div className={styles.seminarDivider} />}
+                    <SeminarCard seminar={sem} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </AccordionCard>
+
+        {/* ── 2b. Archived Seminars ── */}
+        {(() => {
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const archived = seminars.filter((s) => {
+            const d = new Date(s.date);
+            return !isNaN(d.getTime()) && d < now;
+          });
+
+          if (archived.length === 0) return null;
+
+          return (
+            <AccordionCard
+              icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>}
+              title="Archived Seminars"
+              subtitle="Concluded seminars and past training workshops."
+            >
+              <div className={styles.divider} />
+              <div className={styles.seminarList}>
+                {archived.map((sem, idx) => (
+                  <div key={sem.id}>
+                    {idx > 0 && <div className={styles.seminarDivider} />}
+                    <div style={{ opacity: 0.85 }}>
+                      <SeminarCard seminar={{ ...sem, topic: `${sem.topic} [Concluded]`, registrationUrl: '' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionCard>
+          );
+        })()}
 
         {/* ── 3. Training Resources ── */}
         <AccordionCard

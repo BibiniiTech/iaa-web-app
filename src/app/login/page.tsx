@@ -59,6 +59,19 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        const authErr = err as { code: string; message: string };
+        if (authErr.code === 'auth/unauthorized-domain' || authErr.message?.includes('unauthorized-domain')) {
+          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'iaaapp.vercel.app';
+          setError(
+            `Domain "${currentDomain}" is not yet authorized for Google Sign-In in Firebase Console. Please sign in with Email & Password or Demo Access, or add "${currentDomain}" in Firebase Console > Authentication > Settings > Authorized domains.`
+          );
+          return;
+        }
+        if (authErr.code === 'auth/popup-closed-by-user') {
+          return;
+        }
+      }
       const message = err instanceof Error ? err.message : 'Google sign in failed';
       setError(message);
     } finally {

@@ -5,6 +5,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { getCachedConfigDoc, getCachedUserProfile, invalidateAllCaches } from '@/lib/firebase-cache';
+import { MDA_DATA, SOE_DATA } from '@/data/mda_data';
+import { MMDA_DATA, RCC_DATA } from '@/data/mmda_data';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import styles from './page.module.css';
@@ -28,6 +30,7 @@ interface Seminar {
 interface Deadline {
   report: string;
   dateString: string; // YYYY-MM-DD or parseable date
+  targetGroup?: string;
 }
 
 function parseLocalDate(dateStr: string): Date | null {
@@ -218,14 +221,32 @@ export default function Home() {
       let submissionsSubtitle = 'Next 30 Days';
 
       if (!isAdminOrNoInst) {
+        let userInstType = String(userData?.institutionType || '').toUpperCase().trim();
+        if (!userInstType && institution) {
+          const normInst = institution.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (MDA_DATA.some(m => m.toLowerCase().replace(/[^a-z0-9]/g, '') === normInst)) {
+            userInstType = 'MDA';
+          } else if (SOE_DATA.some(s => s.toLowerCase().replace(/[^a-z0-9]/g, '') === normInst)) {
+            userInstType = 'SOE';
+          } else if (Object.values(RCC_DATA).some(r => r.toLowerCase().replace(/[^a-z0-9]/g, '') === normInst)) {
+            userInstType = 'RCC';
+          } else if (Object.values(MMDA_DATA).flat().some(m => m.toLowerCase().replace(/[^a-z0-9]/g, '') === normInst)) {
+            userInstType = 'MMDA';
+          }
+        }
+        const applicableDeadlines = deadlines.filter(d => {
+          if (!d.targetGroup || d.targetGroup === 'ALL') return true;
+          return userInstType ? d.targetGroup.toUpperCase() === userInstType : true;
+        });
+
         // Persistent Overdue Submissions: Deadlines in the past not submitted by user's institution
-        const overdueDeadlines = deadlines.filter(d => {
+        const overdueDeadlines = applicableDeadlines.filter(d => {
           const dDate = parseLocalDate(d.dateString);
           return dDate && dDate < today && !isDeadlineMetBySubmissions(d.report, institutionSubmissions);
         });
 
         // Upcoming Submissions: Deadlines due in next 30 days not submitted by user's institution
-        const dueSoonDeadlines = deadlines.filter(d => {
+        const dueSoonDeadlines = applicableDeadlines.filter(d => {
           const dDate = parseLocalDate(d.dateString);
           return dDate && dDate >= today && dDate <= thirtyDaysFromNow && !isDeadlineMetBySubmissions(d.report, institutionSubmissions);
         });

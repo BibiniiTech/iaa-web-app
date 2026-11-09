@@ -34,6 +34,7 @@ export interface ReportDefinition {
   defaultDeadline: string; // YYYY-MM-DD
   reportNamePattern: string;
   quarterIdentifier?: string;
+  targetGroup?: string;
 }
 
 export interface CategoryGroup {
@@ -201,6 +202,7 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
 type DeadlineConfig = {
   report: string;
   dateString: string;
+  targetGroup?: string;
 };
 
 function normalizeText(str?: string): string {
@@ -471,6 +473,7 @@ export default function DefaultersPage() {
           defaultDeadline: d.dateString,
           reportNamePattern: d.report,
           quarterIdentifier: quarterId,
+          targetGroup: d.targetGroup || "ALL",
         };
 
         const targetGroup = groups.find(g => g.id === category);
@@ -540,7 +543,11 @@ export default function DefaultersPage() {
           const deadlineMs = deadlineDate.getTime();
           const msPerDay = 1000 * 60 * 60 * 24;
 
-          for (const inst of allInstitutions) {
+          const applicableInstitutions = (!rep.targetGroup || rep.targetGroup === 'ALL')
+            ? allInstitutions
+            : allInstitutions.filter(inst => inst.type.toLowerCase() === rep.targetGroup?.toLowerCase());
+
+          for (const inst of applicableInstitutions) {
             const normInst = normalizeText(inst.name);
 
             // Find matching submissions for this institution and report
