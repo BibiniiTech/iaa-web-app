@@ -434,7 +434,7 @@ private fun FindingItemCard(
                         for (law in finding.criteria) {
                             var lawExpanded by remember(law) { mutableStateOf(false) }
                             val lookupKey = resolveLawKey(law)
-                            val fullText = if (lookupKey != null) lawDetailsDatabase[lookupKey] else null
+                            val fullText = lawDetailsDatabase[law] ?: (if (lookupKey != null) lawDetailsDatabase[lookupKey] else null)
 
                             Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
                                 Row(
