@@ -64,8 +64,12 @@ function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProp
     const nextState = !isExpanded;
     setIsExpanded(nextState);
 
-    if (nextState && key && !detailText) {
-      if (lawCache.has(key)) {
+    if (nextState && !detailText) {
+      if (lawCache.has(c)) {
+        setDetailText(lawCache.get(c) || null);
+        return;
+      }
+      if (key && lawCache.has(key)) {
         setDetailText(lawCache.get(key) || null);
         return;
       }
@@ -73,17 +77,21 @@ function CriteriaItem({ c, searchQuery, highlightSearchTerms }: CriteriaItemProp
       setLoadingLaw(true);
       try {
         const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/findings/law?key=${encodeURIComponent(key)}`, {
+        let res = await fetch(`/api/findings/law?key=${encodeURIComponent(c)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.text || 'Full section text not found in database.';
-          lawCache.set(key, text);
-          setDetailText(text);
-        } else {
-          setDetailText('Unable to retrieve statutory provision at this time.');
+        let data = res.ok ? await res.json() : null;
+        if (!data?.text && key) {
+          res = await fetch(`/api/findings/law?key=${encodeURIComponent(key)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) data = await res.json();
         }
+
+        const text = data?.text || 'Full section text not found in database.';
+        lawCache.set(c, text);
+        if (key) lawCache.set(key, text);
+        setDetailText(text);
       } catch {
         setDetailText('Error loading statutory provision.');
       } finally {
